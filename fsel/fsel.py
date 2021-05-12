@@ -1,0 +1,625 @@
+from typing import Optional, List, Dict, AnyStr
+
+from picotui.widgets import WListBox, Dialog, ACTION_CANCEL, ACTION_PREV, ACTION_NEXT, ACTION_OK
+
+from .picotui_patch import patch_picotui
+
+patch_picotui()
+from fsel.picotui_patch import *
+
+from picotui.defs import *
+import os
+import sys
+import json
+
+screen = Screen()
+KEY_ALT_UP = b'\x1b[1;3A'
+KEY_ALT_DOWN = b'\x1b[1;3B'
+KEY_ALT_PAGE_UP = b'\x1b[5;3~'
+KEY_ALT_PAGE_DOWN = b'\x1b[6;3~'
+
+RECENT_COUNT = 10
+
+
+class FsModel:
+    def __init__(self, root: AnyStr, show_files: bool, executables: bool, root_history):
+        self.root = root
+        self.select_files = show_files
+        self.executables = executables
+        self.root_history = root_history
+        self.visit_history = {}
+
+    def list_items(self, path: List) -> List:
+        full_fs_path = os.path.join(self.root, *path)
+        try:
+            entries: List[str] = os.listdir(full_fs_path)
+            items = [(name, False) for name in sorted(entries) if
+                             os.path.isdir(full_fs_path + '/' + name) and not name.startswith('.')]
+            if self.select_files:
+                items += [
+                    (name, True) for name in sorted(entries)
+                    if self.is_suitable_file(full_fs_path, name)
+                ]
+            return items
+
+        except PermissionError:
+            return []
+
+    def is_suitable_file(self, folder, name):
+        path = folder + '/' + name
+        return not name.startswith('.') and self.is_suitable_file_path(path)
+
+    def is_suitable_file_path(self, path):
+        return os.path.isfile(path) and os.access(path, os.X_OK) == self.executables
+
+    def full_path(self, items_path):
+        path = os.path.join(self.root, *[model.item_text(i) for i in items_path])
+        if self.select_files:
+            return path if self.is_suitable_file_path(path) else None
+        else:
+            return path
+
+    def memorize(self, path: List[AnyStr], name: AnyStr, persistent: bool):
+        storage = self.root_history if persistent else self.visit_history
+        storage[self.string_path(path)] = name
+
+    def recall_chosen_name(self, path):
+        string_path = self.string_path(path)
+        return self.visit_history.get(string_path) or \
+               self.root_history.get(string_path)
+
+    def recall_choice(self, path, items):
+        string_path = self.string_path(path)
+        return FsModel.recall_choice_in(self.visit_history, string_path, items) or \
+               FsModel.recall_choice_in(self.root_history, string_path, items)
+
+    @staticmethod
+    def recall_choice_in(storage, path, items):
+        if path in storage:
+            last_name = storage[path]
+            if last_name is not None:
+                return model.index_of_item_text(last_name, items)
+
+    def string_path(self, path):
+        return '/'.join(path)
+
+
+class JsonModel:
+    def __init__(self, data):
+        self.data = data
+
+    def list_items(self, path: List[AnyStr]):
+        return self.list_items_of(self.data, path)
+
+    def list_items_of(self, j, path: List[AnyStr]):
+        if not path:
+            if isinstance(j, dict):
+                return [[k, False] for k in j.keys()]
+            elif isinstance(j, list):
+                return [[str(k), False] for k in range(len(j))]
+            else:
+                return []
+        else:
+            return self.list_items_of(self.resolve(j, path[0]), path[1:])
+
+    def resolve(self, j, s: AnyStr):
+        if isinstance(j, dict):
+            return j[s]
+        if isinstance(j, list):
+            return j[int(s)]
+
+
+class Model:
+    def is_leaf(self, item):
+        return item[1]
+
+    def max_item_text_length(self, items):
+        return max(len(item[0]) for item in items)
+
+    def item_text(self, item):
+        return item[0]
+
+    def index_of_item_text(self, text, items):
+        for i, item in enumerate(items):
+            if text == item[0]:
+                return i
+
+
+model = Model()
+
+
+class CustomListBox(WListBox):
+    search_string: str = ''
+
+    def __init__(self, w, h, items, folder=None):
+        super().__init__(w, h, items)
+        self.folder = folder
+
+    def __repr__(self):
+        return f'{self.folder}: {self.items[self.choice]}'
+
+    def handle_edit_key(self, key):
+        if key == KEY_DELETE:
+            self.search_string = ''
+            self.search_all()
+        elif key == KEY_ALT_UP:
+            self.search(range(self.cur_line - 1, -1, -1), False)
+        elif key == KEY_ALT_DOWN:
+            self.search(range(self.cur_line + 1, len(self.items)), False)
+        elif key == KEY_ALT_PAGE_UP:
+            self.search(range(0, len(self.items)), False)
+        elif key == KEY_ALT_PAGE_DOWN:
+            self.search(range(len(self.items) - 1, self.cur_line, -1), False)
+        elif key == KEY_BACKSPACE:
+            self.search_string = self.search_string[:-1]
+            self.search_all()
+        elif type(key) is bytes and not key.startswith(b'\x1b'):
+            self.search_string += key.decode("utf-8")
+            self.search_all()
+        else:
+            return
+
+        self.redraw()
+
+    def search_all(self):
+        self.search(range(0, len(self.items)), True)
+                    
+    def search(self, search_range, skip_if_on_match):
+        if self.search_string != '':
+            if skip_if_on_match and model.item_text(self.items[self.cur_line]).find(self.search_string) != -1:
+                return
+            for i in search_range:
+                if model.item_text(self.items[i]).find(self.search_string) != -1:
+                    self.cur_line = self.choice = i
+                    overshoot = i - (self.top_line + self.height)
+                    if overshoot > 0:
+                        self.top_line += overshoot + 1
+                    undershoot = self.top_line - i
+                    if undershoot > 0:
+                        self.top_line -= undershoot
+                    return i
+
+    def show_line(self, item, i):
+        if i == -1:
+            self.attr_reset()
+            self.clear_num_pos(self.width)
+            self.attr_reset()
+            return
+
+        is_leaf = model.is_leaf(item)
+        l = model.item_text(item)
+        match_from = l.find(self.search_string) if len(self.search_string) > 0 else -1
+        match_to = match_from + len(self.search_string)
+
+        l = l[:self.width]
+        match_from = min(match_from, self.width)
+        match_to = min(match_to, self.width)
+
+        self.attr_reset()
+        hlite = self.cur_line == i
+
+        if hlite:
+            self.do_show_line(l, match_from, match_to, C_B_YELLOW,
+                              C_WHITE if is_leaf else C_B_WHITE,
+                              C_BLUE if is_leaf else C_BLACK, C_CYAN, C_GREEN)
+        else:
+            self.do_show_line(l, match_from, match_to, C_B_YELLOW,
+                              C_BLUE if is_leaf else C_WHITE,
+                              C_BLUE if is_leaf else C_WHITE, C_BLACK, C_BLACK)
+
+        self.clear_num_pos(self.width - len(l))
+        self.attr_reset()
+
+    def do_show_line(self, l, match_from, match_to, focus_match_fg, focus_non_match_fg, fg, focus_bg, bg):
+        if self.focus:
+            self.do_show_line0(l, match_from, match_to, focus_bg, focus_match_fg, focus_non_match_fg)
+        else:
+            self.do_show_line0(l, match_from, match_to, bg, focus_match_fg, fg)
+
+    def do_show_line0(self, l, match_from, match_to, bg, match_fg, non_match_fg):
+        if match_from != -1:
+            self.attr_color(non_match_fg, bg)
+            self.wr(l[:match_from])
+            self.attr_reset()
+            self.attr_color(match_fg, bg)
+            self.wr(l[match_from: match_to])
+            self.attr_reset()
+            self.attr_color(non_match_fg, bg)
+            self.wr(l[match_to:])
+        else:
+            self.attr_color(non_match_fg, bg)
+            self.wr(l)
+
+
+class ListBoxes:
+    boxes: List[CustomListBox]
+
+    def __init__(self, tree_model, initial_path):
+        self.tree_model = tree_model
+        self.boxes = self.boxes_for_path(initial_path)
+        self.expand_lists()
+
+    def boxes_for_path(self, initial_path) -> List[CustomListBox]:
+        lists = []
+        index = 0
+        while True:
+            a_list = self.make_box_or_none(initial_path[:index])
+            if a_list is None:
+                break
+            lists.append(a_list)
+            index += 1
+            if index > len(initial_path):
+                break
+
+        for index, l in enumerate(lists):
+            if index == len(lists) - 1:
+                l.focus = True
+                break
+            l.cur_line = l.choice = model.index_of_item_text(initial_path[index], l.items) or 0
+
+        return lists
+
+    def expand_lists(self):
+        index = len(self.boxes) - 1
+        while True:
+            if self.is_at_leaf(index):
+                break
+            path = self.path(index)
+            name = self.tree_model.recall_chosen_name(path)
+            index += 1
+            a_list = self.make_box_or_none(path)
+            if a_list is None or a_list.choice is None:
+                break
+            self.boxes.append(a_list)
+            if len(a_list.items) == 1:
+                continue
+            if name is None:
+                break
+
+    def activate_sibling(self, index):
+        self.boxes = self.boxes[: index + 1]
+        self.expand_lists()
+        self.memorize_choice_in_list(index, False)
+
+    def try_to_go_in(self, index):
+        if index != len(self.boxes) - 1 or self.is_at_leaf(index):
+            return
+
+        self.memorize_choice_in_list(index, False)
+
+        new_box = self.make_box_or_none(self.path(index))
+        if new_box is None:
+            return
+
+        self.boxes.append(new_box)
+        self.expand_lists()
+        return True
+
+    def make_box_or_none(self, path: List) -> Optional[CustomListBox]:
+        items = self.tree_model.list_items(path)
+        if len(items) == 0:
+            return None
+        return self.make_box(path, items)
+
+    def make_box(self, path, items):
+        box = CustomListBox(model.max_item_text_length(items), len(items), items, path)
+        choice = self.tree_model.recall_choice(path, items)
+        box.cur_line = box.choice = 0 if choice is None else choice
+        return box
+
+    def memorize_choice_in_list(self, index, persistent: bool):
+        parent_path = [] if index == 0 else self.path(index - 1)
+        self.tree_model.memorize(parent_path, model.item_text(self.selected_item_in_list(index)), persistent)
+
+    def index_of_last_list(self):
+        return len(self.boxes) - 1
+
+    def is_at_leaf(self, index):
+        return model.is_leaf(self.selected_item_in_list(index))
+
+    def selected_item_in_list(self, index):
+        return self.boxes[index].items[self.boxes[index].choice]
+
+    def max_child_height(self):
+        return max(len(child.items) for child in self.boxes)
+
+    def is_empty(self):
+        return len(self.boxes) == 0
+
+    def path(self, index):
+        return [model.item_text(l.items[l.choice]) for l in self.boxes[: index + 1]]
+
+    def items_path(self, index):
+        return [l.items[l.choice] for l in self.boxes[: index + 1]]
+
+
+class DynamicDialog(Dialog):
+    def __init__(self, screen_height, x, y, w=0, h=0):
+        super().__init__(x, y, w, h)
+        self.screen_height = screen_height
+
+    def request_height(self, max_child_h):
+        old_h = self.h
+        self.h = min(max_child_h, self.screen_height)
+        if old_h > self.h:
+            screen.clear_box(self.x, self.y + self.h, self.w, old_h - self.h)
+
+        overshoot = max(self.y + self.h - self.screen_height, 0)
+        if overshoot > 0:
+            Screen.goto(0, self.screen_height - 1)
+            for _ in range(overshoot):
+                Screen.wr('\r\n')
+            self.y -= overshoot
+
+    def redraw(self):
+        # Init some state on first redraw
+        if self.focus_idx == -1:
+            self.autosize()
+            self.focus_idx, self.focus_w = self.find_focusable_by_idx(0, 1)
+            if self.focus_w:
+                self.focus_w.focus = True
+
+        self.clear()
+        for w in self.childs:
+            w.redraw()
+
+    def clear(self):
+        self.attr_reset()
+        screen.clear_box(self.x, self.y, self.w, self.h)
+
+
+class SelectPathDialog(DynamicDialog):
+    def __init__(self, screen_height, width, height, x, y, folder_lists: ListBoxes):
+        super().__init__(screen_height, 0, 0, width, height)
+        self.x = x
+        self.y = y
+        self.folder_lists = folder_lists
+        self.layout()
+
+    def layout(self):
+        self.request_height(self.folder_lists.max_child_height())
+
+        self.childs = []
+        child_x = 0
+
+        for i, child in enumerate(self.folder_lists.boxes):
+            child.h = child.height = min(child.height, self.h)
+            self.add(child_x, 0, child)
+            child_x += child.width + 1
+            if child.focus:
+                self.focus_w = child
+                self.focus_idx = i
+
+    def handle_mouse(self, x, y):
+        pass
+
+    def handle_key(self, key):
+        if key == KEY_QUIT:
+            return key
+        if key == KEY_ESC and self.finish_on_esc:
+            return ACTION_CANCEL
+        if key == KEY_RIGHT:
+            if self.focus_idx == len(self.folder_lists.boxes) - 1:
+                if self.folder_lists.try_to_go_in(self.focus_idx):
+                    self.layout()
+                    self.redraw()
+                    self.move_focus(1)
+            else:
+                self.move_focus(1)
+        elif key == KEY_LEFT:
+            if self.focus_idx != 0:
+                self.move_focus(-1)
+        elif key == KEY_HOME:
+            self.focus_idx = 0
+            self.change_focus(self.folder_lists.boxes[self.focus_idx])
+        elif key == KEY_END:
+            self.focus_idx = self.folder_lists.index_of_last_list()
+            self.change_focus(self.folder_lists.boxes[self.focus_idx])
+        elif self.focus_w:
+            if key == KEY_SHIFT_TAB:
+                self.focus_idx = -1
+                return ACTION_OK
+            if key == KEY_TAB:
+                self.focus_idx = self.folder_lists.index_of_last_list()
+            if key == KEY_ENTER or key == KEY_TAB:
+                for i in range(0, self.focus_idx + 1):
+                    self.folder_lists.memorize_choice_in_list(i, True)
+                return ACTION_OK
+
+            choice_before = self.focus_w.choice
+            res = self.focus_w.handle_key(key)
+            choice_after = self.focus_w.choice
+
+            if choice_before != choice_after:
+                self.folder_lists.activate_sibling(self.focus_idx)
+                self.layout()
+                self.redraw()
+
+            if res == ACTION_PREV:
+                self.move_focus(-1)
+            elif res == ACTION_NEXT:
+                self.move_focus(1)
+            else:
+                return res
+
+    def items_path(self):
+        return self.folder_lists.items_path(self.focus_idx)
+
+
+class ItemSelectionDialog(DynamicDialog):
+    def __init__(self, screen_height, width, height, x, y, items):
+        super().__init__(screen_height, 0, 0, width, height)
+        self.x = x
+        self.y = y
+        self.request_height(len(items))
+        self.add(0, 0, CustomListBox(model.max_item_text_length(items), len(items), items))
+
+    def handle_key(self, key):
+        if key == KEY_QUIT:
+            return KEY_QUIT
+        if key == KEY_ESC and self.finish_on_esc:
+            return ACTION_CANCEL
+        elif self.focus_w:
+            if key == KEY_ENTER:
+                return ACTION_OK
+            return self.focus_w.handle_key(key)
+
+    def items_path(self):
+        return [self.focus_w.items[self.focus_w.choice]]
+
+
+def run(dialog_supplier):
+    v = None
+    try:
+        Screen.init_tty()
+        Screen.cursor(False)
+
+        screen_width, screen_height = Screen.screen_size()
+        cursor_y, cursor_x = cursor_position()
+
+        v = dialog_supplier(screen_height, screen_width, cursor_y, cursor_x)
+        if v.loop() == ACTION_OK:
+            return v.items_path()
+        else:
+            return None
+    finally:
+        Screen.attr_reset()
+        if v is not None:
+            v.clear()
+            Screen.goto(0, v.y)
+
+        Screen.cursor(True)
+        Screen.deinit_tty()
+
+
+def full_path(root, rel_path):
+    root = root + '/' if root != '/' else '/'
+    return root + rel_path
+
+
+def load_settings():
+    try:
+        with open(settings_file()) as json_file:
+            return json.load(json_file)
+    except:
+        return {}
+
+
+def save_settings(settings):
+    try:
+        with open(settings_file(), 'w') as f:
+            json.dump(settings, f, indent=2, sort_keys=True)
+    except Exception as e:
+        pass
+
+
+def settings_file():
+    return os.getenv("HOME") + "/.fsel_history"
+
+
+def find_root_for(folder, roots):
+    path = folder if not folder.endswith('/') else folder[:len(folder) - 1]
+
+    while True:
+        if path in roots:
+            return False, str(path)
+        if path == os.getenv('HOME') or path == '' or path.startswith('.'):
+            return False, path
+
+        contents = os.listdir(path)
+        if '.svn' in contents or '.git' in contents:
+            return True, path
+
+        i = path.rfind('/')
+        path = path[:i]
+
+
+def field_or_else(d: Dict, name, default):
+    result = d.get(name)
+    if result is None:
+        d[name] = result = default
+    return result
+
+
+def file_ops(folder):
+    target_is_file = '-f' in sys.argv[1:]
+    target_is_executable = '-x' in sys.argv[1:]
+
+    settings = load_settings()
+    vcs_root_detected, root = find_root_for(folder, settings)
+    if vcs_root_detected:
+        settings[root] = {}
+    settings_for_root = field_or_else(settings, root, {})
+    recent = field_or_else(settings_for_root, field_for_recent(target_is_file, target_is_executable), [])
+
+    if '-e' in sys.argv[1:]:
+        if len(recent) == 0:
+            sys.exit(2)
+
+        recent_items = [(name, False) for name in recent]
+        items_path = run(
+            lambda screen_height, screen_width, cursor_y, cursor_x:
+            ItemSelectionDialog(screen_height, screen_width, 0, 0, cursor_y, recent_items)
+        )
+        if items_path is None:
+            sys.exit(1)
+        path = full_path(root, model.item_text(items_path[0]))
+        if path is None:
+            sys.exit(1)
+    else:
+        root_history = field_or_else(settings_for_root, 'history', {})
+        fs_model = FsModel(root, target_is_file, target_is_executable, root_history)
+
+        rel_path = os.path.relpath(folder, root)
+        initial_path = rel_path.split('/') if rel_path != '.' else []
+        folder_lists = ListBoxes(fs_model, initial_path)
+        if folder_lists.is_empty():
+            sys.exit(2)
+
+        items_path = run(
+            lambda screen_height, screen_width, cursor_y, cursor_x:
+            SelectPathDialog(screen_height, screen_width, 0, 0, cursor_y, folder_lists)
+        )
+        if items_path is None:
+            sys.exit(1)
+        path = fs_model.full_path(items_path)
+        if path is None:
+            sys.exit(1)
+
+    rel_path_from_root = os.path.relpath(path, start=root)
+    update_recents(recent, rel_path_from_root)
+    save_settings(settings)
+
+    print(to_requested_kind(path, rel_path_from_root))
+
+
+def field_for_recent(target_is_file, target_is_executable):
+    if target_is_file:
+        return 'recent-executables' if target_is_executable else 'recent-files'
+    else:
+        return 'recent-folders'
+
+
+def update_recents(recent, rel_path_from_root):
+    if rel_path_from_root != '.':
+        if rel_path_from_root in recent:
+            recent.remove(rel_path_from_root)
+        recent.insert(0, rel_path_from_root)
+        del recent[RECENT_COUNT:]
+
+
+def to_requested_kind(path, rel_path_from_root):
+    ret_rel_path = '-r' in sys.argv[1:]
+    ret_rel_path_from_root = '-R' in sys.argv[1:]
+    if ret_rel_path:
+        return os.path.relpath(path)
+    elif ret_rel_path_from_root:
+        return rel_path_from_root
+    else:
+        return path
+
+
+if __name__ == "__main__":
+    if sys.stdin.isatty():
+        path_args = [arg for arg in sys.argv[1:] if not arg.startswith('-')]
+        file_ops(os.getenv('PWD') if len(path_args) != 1 else path_args[0])
