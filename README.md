@@ -2,6 +2,8 @@
 ```fsel``` (stands for Folder Select) is a Text User Interface (TUI) program to easily navigate the folders of your project(s) in the terminal.
 
 Conceptually, UI of ```fsel``` is similar to Mac's ```finder``` app: selected folders are shown next to each other.
+![fsel navigation](https://raw.githubusercontent.com/semicontinuity/fsel/main/fsel.gif "Navigation")
+
 
 * ```fsel``` is intended for navigation inside your project, it is not intended to navigate the entire file system.
 * ```fsel``` auto-detects the root folder of your project: if there is a directory ```.git```, or ```.svn```, then it's the root of your project.
