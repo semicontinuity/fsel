@@ -556,6 +556,10 @@ def file_ops(folder):
         if len(recent) == 0:
             sys.exit(2)
 
+        # makes little sense to cd to the current directory...
+        if recent[0] == os.path.relpath(os.environ["PWD"], root) and len(recent) > 1:   # PWD for logical path
+            recent[0], recent[1] = recent[1], recent[0]
+
         recent_items = [(name, False) for name in recent]
         items_path = run(
             lambda screen_height, screen_width, cursor_y, cursor_x:
