@@ -20,6 +20,84 @@ KEY_ALT_PAGE_DOWN = b'\x1b[6;3~'
 
 RECENT_COUNT = 10
 
+C_IDX_BG = 0
+C_IDX_REG_FG = 1
+C_IDX_MATCH_FG = 2
+
+C_FOLDER = [
+    # non focused list; non highlighted entry
+    [C_BLACK, C_WHITE, C_B_YELLOW],
+    # non focused list; highlighted entry
+    [C_GREEN, C_BLACK, C_B_YELLOW],
+    # focused list; non highlighted entry
+    [C_BLACK, C_WHITE, C_B_YELLOW],
+    # focused list; highlighted entry
+    [C_CYAN, C_B_WHITE, C_B_YELLOW]
+]
+
+C_LEAF = [
+    # non focused list; non highlighted entry
+    [C_BLACK, C_BLUE, C_B_YELLOW],
+    # non focused list; highlighted entry
+    [C_GREEN, C_BLACK, C_B_YELLOW],
+    # focused list; non highlighted entry
+    [C_BLACK, C_BLUE, C_B_YELLOW],
+    # focused list; highlighted entry
+    [C_CYAN, C_WHITE, C_B_YELLOW]
+]
+
+
+class PaintContext:
+    cur_x: int = sys.maxsize
+    cur_y: int = sys.maxsize
+    min_x: int = 0
+    min_y: int = 0
+    max_x: int = 0
+    max_y: int = 0
+
+    def goto(self, x: int, y: int):
+        self.cur_x = x
+        self.cur_y = y
+        if self.min_x <= x < self.max_x and self.min_y <= y < self.max_y:
+            Screen.goto(x, y)
+
+    def paint_string(self, s: str):
+        x = self.cur_x
+        length = len(s)
+        new_x = x + length
+        # print(f'paint_string {s} length={length} cur_x={self.cur_x}')
+
+        if self.min_y <= self.cur_y < self.max_y:
+            before = max(0, self.min_x - self.cur_x)
+            after = max(0, new_x - self.max_x)
+            to = length - after
+            # print(f'| before={before} to={to} after={after}')
+            if to > before:
+                if before > 0:
+                    Screen.goto(self.min_x, self.cur_y)
+                Screen.wr(s[before:to])
+
+        self.cur_x = new_x
+
+    def clear_num_pos(self, length: int):
+        x = self.cur_x
+        new_x = x + length
+        # print(f'clear_num_pos length={length} cur_x={self.cur_x}')
+
+        if self.min_y <= self.cur_y < self.max_y:
+            before = max(0, self.min_x - self.cur_x)
+            after = max(0, new_x - self.max_x)
+            to = length - after
+            if to > before:
+                if before > 0:
+                    Screen.goto(self.min_x, self.cur_y)
+                Screen.wr("\x1b[%dX" % (to - before))
+
+        self.cur_x = new_x
+
+
+p_ctx = PaintContext()
+
 
 class FsModel:
     def __init__(self, root: AnyStr, show_files: bool, executables: bool, root_history):
@@ -179,56 +257,49 @@ class CustomListBox(WListBox):
                         self.top_line -= undershoot
                     return i
 
+    @staticmethod
+    def goto(x, y):
+        p_ctx.goto(x, y)
+
     def show_line(self, item, i):
+        """ item: line value; i: -1 for off-limit lines """
         if i == -1:
             self.attr_reset()
             self.clear_num_pos(self.width)
             self.attr_reset()
-            return
+        else:
+            self.show_real_line(item, i)
 
+    def show_real_line(self, item, i):
         is_leaf = model.is_leaf(item)
         l = model.item_text(item)
         match_from = l.find(self.search_string) if len(self.search_string) > 0 else -1
         match_to = match_from + len(self.search_string)
-
         l = l[:self.width]
         match_from = min(match_from, self.width)
         match_to = min(match_to, self.width)
 
-        self.attr_reset()
-        hlite = self.cur_line == i
+        palette = (C_LEAF if is_leaf else C_FOLDER)[2 * int(self.focus) + int(self.cur_line == i)]
 
-        if hlite:
-            self.do_show_line(l, match_from, match_to, C_B_YELLOW,
-                              C_WHITE if is_leaf else C_B_WHITE,
-                              C_BLUE if is_leaf else C_BLACK, C_CYAN, C_GREEN)
-        else:
-            self.do_show_line(l, match_from, match_to, C_B_YELLOW,
-                              C_BLUE if is_leaf else C_WHITE,
-                              C_BLUE if is_leaf else C_WHITE, C_BLACK, C_BLACK)
-
-        self.clear_num_pos(self.width - len(l))
-        self.attr_reset()
-
-    def do_show_line(self, l, match_from, match_to, focus_match_fg, focus_non_match_fg, fg, focus_bg, bg):
-        if self.focus:
-            self.do_show_line0(l, match_from, match_to, focus_bg, focus_match_fg, focus_non_match_fg)
-        else:
-            self.do_show_line0(l, match_from, match_to, bg, focus_match_fg, fg)
-
-    def do_show_line0(self, l, match_from, match_to, bg, match_fg, non_match_fg):
         if match_from != -1:
-            self.attr_color(non_match_fg, bg)
-            self.wr(l[:match_from])
             self.attr_reset()
-            self.attr_color(match_fg, bg)
-            self.wr(l[match_from: match_to])
+            self.attr_color(palette[C_IDX_REG_FG], palette[C_IDX_BG])
+            p_ctx.paint_string(l[:match_from])
+
             self.attr_reset()
-            self.attr_color(non_match_fg, bg)
-            self.wr(l[match_to:])
+            self.attr_color(palette[C_IDX_MATCH_FG], palette[C_IDX_BG])
+            p_ctx.paint_string(l[match_from: match_to])
+
+            self.attr_reset()
+            self.attr_color(palette[C_IDX_REG_FG], palette[C_IDX_BG])
+            p_ctx.paint_string(l[match_to:])
         else:
-            self.attr_color(non_match_fg, bg)
-            self.wr(l)
+            self.attr_reset()
+            self.attr_color(palette[C_IDX_REG_FG], palette[C_IDX_BG])
+            p_ctx.paint_string(l)
+
+        p_ctx.clear_num_pos(self.width - len(l))
+        self.attr_reset()
 
 
 class ListBoxes:
@@ -476,6 +547,8 @@ def run(dialog_supplier):
 
         screen_width, screen_height = Screen.screen_size()
         cursor_y, cursor_x = cursor_position()
+        p_ctx.max_x = screen_width
+        p_ctx.max_y = screen_height
 
         v = dialog_supplier(screen_height, screen_width, cursor_y, cursor_x)
         if v.loop() == ACTION_OK:
