@@ -227,44 +227,48 @@ class CustomListBox(WListBox):
         return f'{self.folder}: {self.items[self.choice]}'
 
     def handle_edit_key(self, key):
+        if self.handle_search_key(key, self):
+            self.redraw()
+
+    def handle_search_key(self, key, widget: WListBox):
         if key == KEY_DELETE:
             self.search_string = ''
-            self.search_all()
+            self.search_all(widget)
         elif key == KEY_ALT_UP:
-            self.search(range(self.cur_line - 1, -1, -1), False)
+            self.search(range(widget.cur_line - 1, -1, -1), False, widget)
         elif key == KEY_ALT_DOWN:
-            self.search(range(self.cur_line + 1, len(self.items)), False)
+            self.search(range(widget.cur_line + 1, len(widget.items)), False, widget)
         elif key == KEY_ALT_PAGE_UP:
-            self.search(range(0, len(self.items)), False)
+            self.search(range(0, len(widget.items)), False, widget)
         elif key == KEY_ALT_PAGE_DOWN:
-            self.search(range(len(self.items) - 1, self.cur_line, -1), False)
+            self.search(range(len(widget.items) - 1, widget.cur_line, -1), False, widget)
         elif key == KEY_BACKSPACE:
             self.search_string = self.search_string[:-1]
-            self.search_all()
+            self.search_all(widget)
         elif type(key) is bytes and not key.startswith(b'\x1b'):
             self.search_string += key.decode("utf-8")
-            self.search_all()
+            self.search_all(widget)
         else:
-            return
+            return False
 
-        self.redraw()
+        return True
 
-    def search_all(self):
-        self.search(range(0, len(self.items)), True)
+    def search_all(self, widget: WListBox):
+        self.search(range(0, len(widget.items)), True, self)
                     
-    def search(self, search_range, skip_if_on_match):
+    def search(self, search_range, skip_if_on_match, widget: WListBox):
         if self.search_string != '':
-            if skip_if_on_match and model.item_text(self.items[self.cur_line]).find(self.search_string) != -1:
+            if skip_if_on_match and model.item_text(widget.items[widget.cur_line]).find(self.search_string) != -1:
                 return
             for i in search_range:
-                if model.item_text(self.items[i]).find(self.search_string) != -1:
-                    self.cur_line = self.choice = i
-                    overshoot = i - (self.top_line + self.height)
+                if model.item_text(widget.items[i]).find(self.search_string) != -1:
+                    widget.cur_line = widget.choice = i
+                    overshoot = i - (widget.top_line + widget.height)
                     if overshoot > 0:
-                        self.top_line += overshoot + 1
-                    undershoot = self.top_line - i
+                        widget.top_line += overshoot + 1
+                    undershoot = widget.top_line - i
                     if undershoot > 0:
-                        self.top_line -= undershoot
+                        widget.top_line -= undershoot
                     return i
 
     @staticmethod
