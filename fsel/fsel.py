@@ -76,6 +76,8 @@ class PaintContext:
                 if before > 0:
                     Screen.goto(self.min_x, self.cur_y)
                 Screen.wr(s[before:to])
+            if to == before:
+                Screen.goto(new_x, self.cur_y)
 
         self.cur_x = new_x
 
@@ -92,8 +94,19 @@ class PaintContext:
                 if before > 0:
                     Screen.goto(self.min_x, self.cur_y)
                 Screen.wr("\x1b[%dX" % (to - before))
+            if to == before:
+                Screen.goto(new_x, self.cur_y)
 
         self.cur_x = new_x
+
+    def clear_box(self, left, top, width, height):
+        # "\x1b[%s;%s;%s;%s$z" doesn't work
+        s = b" " * width
+        bottom = top + height
+        while top < bottom:
+            self.goto(left, top)
+            self.clear_num_pos(width)
+            top += 1
 
 
 p_ctx = PaintContext()
@@ -265,7 +278,7 @@ class CustomListBox(WListBox):
         """ item: line value; i: -1 for off-limit lines """
         if i == -1:
             self.attr_reset()
-            self.clear_num_pos(self.width)
+            p_ctx.clear_num_pos(self.width)
             self.attr_reset()
         else:
             self.show_real_line(item, i)
@@ -273,6 +286,7 @@ class CustomListBox(WListBox):
     def show_real_line(self, item, i):
         is_leaf = model.is_leaf(item)
         l = model.item_text(item)
+        # print(f'show_real_line {i} l={l}')
         match_from = l.find(self.search_string) if len(self.search_string) > 0 else -1
         match_to = match_from + len(self.search_string)
         l = l[:self.width]
@@ -413,7 +427,7 @@ class DynamicDialog(Dialog):
         old_h = self.h
         self.h = min(max_child_h, self.screen_height)
         if old_h > self.h:
-            screen.clear_box(self.x, self.y + self.h, self.w, old_h - self.h)
+            p_ctx.clear_box(self.x, self.y + self.h, self.w, old_h - self.h)
 
         overshoot = max(self.y + self.h - self.screen_height, 0)
         if overshoot > 0:
@@ -436,14 +450,13 @@ class DynamicDialog(Dialog):
 
     def clear(self):
         self.attr_reset()
-        screen.clear_box(self.x, self.y, self.w, self.h)
+        p_ctx.clear_box(self.x, self.y, self.w, self.h)
 
 
 class SelectPathDialog(DynamicDialog):
-    def __init__(self, screen_height, width, height, x, y, folder_lists: ListBoxes):
-        super().__init__(screen_height, 0, 0, width, height)
-        self.x = x
-        self.y = y
+    def __init__(self, folder_lists: ListBoxes, screen_width, screen_height, width, height, x, y):
+        super().__init__(screen_height, x, y, width, height)
+        self.screen_width = screen_width
         self.folder_lists = folder_lists
         self.layout()
 
@@ -477,6 +490,7 @@ class SelectPathDialog(DynamicDialog):
                     self.move_focus(1)
             else:
                 self.move_focus(1)
+            # self.focus_w.x = 1
         elif key == KEY_LEFT:
             if self.focus_idx != 0:
                 self.move_focus(-1)
@@ -655,7 +669,7 @@ def file_ops(folder):
 
         items_path = run(
             lambda screen_height, screen_width, cursor_y, cursor_x:
-            SelectPathDialog(screen_height, screen_width, 0, 0, cursor_y, folder_lists)
+            SelectPathDialog(folder_lists, screen_width, screen_height, width=1000, height=0, x=0, y=cursor_y)
         )
         if items_path is None:
             sys.exit(1)
