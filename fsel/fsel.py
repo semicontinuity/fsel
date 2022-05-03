@@ -217,59 +217,13 @@ model = Model()
 
 
 class CustomListBox(WListBox):
-    search_string: str = ''
-
-    def __init__(self, w, h, items, folder=None):
+    def __init__(self, w, h, items, folder=None, search_string_supplier=lambda: ''):
         super().__init__(w, h, items)
         self.folder = folder
+        self.search_string_supplier = search_string_supplier
 
     def __repr__(self):
         return f'{self.folder}: {self.items[self.choice]}'
-
-    def handle_edit_key(self, key):
-        if self.handle_search_key(key, self):
-            self.redraw()
-
-    def handle_search_key(self, key, widget: WListBox):
-        if key == KEY_DELETE:
-            self.search_string = ''
-            self.search_all(widget)
-        elif key == KEY_ALT_UP:
-            self.search(range(widget.cur_line - 1, -1, -1), False, widget)
-        elif key == KEY_ALT_DOWN:
-            self.search(range(widget.cur_line + 1, len(widget.items)), False, widget)
-        elif key == KEY_ALT_PAGE_UP:
-            self.search(range(0, len(widget.items)), False, widget)
-        elif key == KEY_ALT_PAGE_DOWN:
-            self.search(range(len(widget.items) - 1, widget.cur_line, -1), False, widget)
-        elif key == KEY_BACKSPACE:
-            self.search_string = self.search_string[:-1]
-            self.search_all(widget)
-        elif type(key) is bytes and not key.startswith(b'\x1b'):
-            self.search_string += key.decode("utf-8")
-            self.search_all(widget)
-        else:
-            return False
-
-        return True
-
-    def search_all(self, widget: WListBox):
-        self.search(range(0, len(widget.items)), True, self)
-                    
-    def search(self, search_range, skip_if_on_match, widget: WListBox):
-        if self.search_string != '':
-            if skip_if_on_match and model.item_text(widget.items[widget.cur_line]).find(self.search_string) != -1:
-                return
-            for i in search_range:
-                if model.item_text(widget.items[i]).find(self.search_string) != -1:
-                    widget.cur_line = widget.choice = i
-                    overshoot = i - (widget.top_line + widget.height)
-                    if overshoot > 0:
-                        widget.top_line += overshoot + 1
-                    undershoot = widget.top_line - i
-                    if undershoot > 0:
-                        widget.top_line -= undershoot
-                    return i
 
     @staticmethod
     def goto(x, y):
@@ -285,11 +239,11 @@ class CustomListBox(WListBox):
             self.show_real_line(item, i)
 
     def show_real_line(self, item, i):
+        search_string = self.search_string_supplier()
         is_leaf = model.is_leaf(item)
         l = model.item_text(item)
-        # print(f'show_real_line {i} l={l}')
-        match_from = l.find(self.search_string) if len(self.search_string) > 0 else -1
-        match_to = match_from + len(self.search_string)
+        match_from = -1 if len(search_string) <= 0 else l.find(search_string)
+        match_to = match_from + len(search_string)
         l = l[:self.width]
         match_from = min(match_from, self.width)
         match_to = min(match_to, self.width)
@@ -319,6 +273,7 @@ class CustomListBox(WListBox):
 
 class ListBoxes:
     boxes: List[CustomListBox]
+    search_string: str = ''
 
     def __init__(self, tree_model, initial_path):
         self.tree_model = tree_model
@@ -388,7 +343,7 @@ class ListBoxes:
         return self.make_box(path, items)
 
     def make_box(self, path, items):
-        box = CustomListBox(model.max_item_text_length(items), len(items), items, path)
+        box = CustomListBox(model.max_item_text_length(items), len(items), items, path, lambda: self.search_string)
         choice = self.tree_model.recall_choice(path, items)
         box.cur_line = box.choice = 0 if choice is None else choice
         return box
@@ -535,11 +490,16 @@ class SelectPathDialog(DynamicDialog):
                     self.folder_lists.memorize_choice_in_list(i, True)
                 return ACTION_OK
 
-            choice_before = self.focus_w.choice
-            res = self.focus_w.handle_key(key)
-            choice_after = self.focus_w.choice
+            # choice_before = self.focus_w.cur_line
+            if self.handle_search_key(key):
+                self.redraw()
+                res = True
+            else:
+                res = self.focus_w.handle_key(key)
+            # choice_after = self.focus_w.cur_line
 
-            if choice_before != choice_after:
+            # if choice_before != choice_after:
+            if True:
                 self.folder_lists.activate_sibling(self.focus_idx)
                 self.layout()
                 self.redraw()
@@ -554,6 +514,61 @@ class SelectPathDialog(DynamicDialog):
 
     def items_path(self):
         return self.folder_lists.items_path(self.focus_idx)
+
+    def handle_search_key(self, key):
+        widget: WListBox = self.focus_w
+
+        if key == KEY_DELETE:
+            self.folder_lists.search_string = ''
+            # self.search_widget_all(widget)
+        elif key == KEY_ALT_UP:
+            self.search_widget_up(widget)
+        elif key == KEY_ALT_DOWN:
+            self.search_widget_down(widget)
+        elif key == KEY_ALT_PAGE_UP:
+            self.search_widget_first(widget)
+        elif key == KEY_ALT_PAGE_DOWN:
+            self.search_widget_last(widget)
+        elif key == KEY_BACKSPACE:
+            self.folder_lists.search_string = self.folder_lists.search_string[:-1]
+            # self.search_widget_all(widget)
+        elif type(key) is bytes and not key.startswith(b'\x1b'):
+            self.folder_lists.search_string += key.decode("utf-8")
+            # self.search_widget_all(widget)
+        else:
+            return False
+
+        return True
+
+    def search_widget_last(self, widget):
+        self.search_widget(range(len(widget.items) - 1, widget.cur_line, -1), False, widget)
+
+    def search_widget_first(self, widget):
+        self.search_widget(range(0, len(widget.items)), False, widget)
+
+    def search_widget_down(self, widget):
+        self.search_widget(range(widget.cur_line + 1, len(widget.items)), False, widget)
+
+    def search_widget_up(self, widget):
+        self.search_widget(range(widget.cur_line - 1, -1, -1), False, widget)
+
+    def search_widget_all(self, widget: WListBox):
+        self.search_widget(range(0, len(widget.items)), True, widget)
+
+    def search_widget(self, search_range, skip_if_on_match, widget: WListBox):
+        if self.folder_lists.search_string != '':
+            if skip_if_on_match and model.item_text(widget.items[widget.cur_line]).find(self.folder_lists.search_string) != -1:
+                return
+            for i in search_range:
+                if model.item_text(widget.items[i]).find(self.folder_lists.search_string) != -1:
+                    widget.cur_line = widget.choice = i
+                    overshoot = i - (widget.top_line + widget.height)
+                    if overshoot > 0:
+                        widget.top_line += overshoot + 1
+                    undershoot = widget.top_line - i
+                    if undershoot > 0:
+                        widget.top_line -= undershoot
+                    return i
 
 
 class ItemSelectionDialog(DynamicDialog):
