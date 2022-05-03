@@ -65,13 +65,11 @@ class PaintContext:
         x = self.cur_x
         length = len(s)
         new_x = x + length
-        # print(f'paint_string {s} length={length} cur_x={self.cur_x}')
 
         if self.min_y <= self.cur_y < self.max_y:
             before = max(0, self.min_x - self.cur_x)
             after = max(0, new_x - self.max_x)
             to = length - after
-            # print(f'| before={before} to={to} after={after}')
             if to > before:
                 if before > 0:
                     Screen.goto(self.min_x, self.cur_y)
@@ -84,7 +82,6 @@ class PaintContext:
     def clear_num_pos(self, length: int):
         x = self.cur_x
         new_x = x + length
-        # print(f'clear_num_pos length={length} cur_x={self.cur_x}')
 
         if self.min_y <= self.cur_y < self.max_y:
             before = max(0, self.min_x - self.cur_x)
@@ -462,7 +459,6 @@ class SelectPathDialog(DynamicDialog):
 
     def layout(self):
         self.request_height(self.folder_lists.max_child_height())
-
         self.childs = []
         child_x = 0
 
@@ -474,12 +470,26 @@ class SelectPathDialog(DynamicDialog):
                 self.focus_w = child
                 self.focus_idx = i
 
+    def moved_to_make_head_visible(self):
+        x = self.focus_w.x
+        if x < 0:
+            self.x -= x
+            return 1
+        return 0
+
+    def moved_to_make_tail_visible(self):
+        x_to = self.focus_w.x + self.focus_w.width
+        if x_to > self.screen_width:
+            self.x -= x_to - self.screen_width
+            return 1
+        return 0
+
     def handle_mouse(self, x, y):
         pass
 
     def handle_key(self, key):
         if key == KEY_QUIT:
-            return key
+            return KEY_QUIT
         if key == KEY_ESC and self.finish_on_esc:
             return ACTION_CANCEL
         if key == KEY_RIGHT:
@@ -490,16 +500,28 @@ class SelectPathDialog(DynamicDialog):
                     self.move_focus(1)
             else:
                 self.move_focus(1)
-            # self.focus_w.x = 1
+
+            if self.moved_to_make_tail_visible() + self.moved_to_make_head_visible() > 0:
+                self.layout()
+                self.redraw()
         elif key == KEY_LEFT:
             if self.focus_idx != 0:
                 self.move_focus(-1)
+            if self.moved_to_make_head_visible() > 0:
+                self.layout()
+                self.redraw()
         elif key == KEY_HOME:
             self.focus_idx = 0
             self.change_focus(self.folder_lists.boxes[self.focus_idx])
+            if self.moved_to_make_head_visible() > 0:
+                self.layout()
+                self.redraw()
         elif key == KEY_END:
             self.focus_idx = self.folder_lists.index_of_last_list()
             self.change_focus(self.folder_lists.boxes[self.focus_idx])
+            if self.moved_to_make_tail_visible() + self.moved_to_make_head_visible() > 0:
+                self.layout()
+                self.redraw()
         elif self.focus_w:
             if key == KEY_SHIFT_TAB:
                 self.focus_idx = -1
@@ -520,12 +542,13 @@ class SelectPathDialog(DynamicDialog):
                 self.layout()
                 self.redraw()
 
-            if res == ACTION_PREV:
-                self.move_focus(-1)
-            elif res == ACTION_NEXT:
-                self.move_focus(1)
-            else:
-                return res
+            # if res == ACTION_PREV:
+            #     self.move_focus(-1)
+            # elif res == ACTION_NEXT:
+            #     self.move_focus(1)
+            # else:
+            #     return res
+            return res
 
     def items_path(self):
         return self.folder_lists.items_path(self.focus_idx)
