@@ -474,6 +474,7 @@ class SelectPathDialog(DynamicDialog):
         x = self.focus_w.x
         if x < 0:
             self.x -= x
+            self.layout()
             return 1
         return 0
 
@@ -481,6 +482,7 @@ class SelectPathDialog(DynamicDialog):
         x_to = self.focus_w.x + self.focus_w.width
         if x_to > self.screen_width:
             self.x -= x_to - self.screen_width
+            self.layout()
             return 1
         return 0
 
@@ -502,25 +504,21 @@ class SelectPathDialog(DynamicDialog):
                 self.move_focus(1)
 
             if self.moved_to_make_tail_visible() + self.moved_to_make_head_visible() > 0:
-                self.layout()
                 self.redraw()
         elif key == KEY_LEFT:
             if self.focus_idx != 0:
                 self.move_focus(-1)
             if self.moved_to_make_head_visible() > 0:
-                self.layout()
                 self.redraw()
         elif key == KEY_HOME:
             self.focus_idx = 0
             self.change_focus(self.folder_lists.boxes[self.focus_idx])
             if self.moved_to_make_head_visible() > 0:
-                self.layout()
                 self.redraw()
         elif key == KEY_END:
             self.focus_idx = self.folder_lists.index_of_last_list()
             self.change_focus(self.folder_lists.boxes[self.focus_idx])
             if self.moved_to_make_tail_visible() + self.moved_to_make_head_visible() > 0:
-                self.layout()
                 self.redraw()
         elif self.focus_w:
             if key == KEY_SHIFT_TAB:
