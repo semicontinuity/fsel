@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict, AnyStr
+from typing import Optional, List, Dict, AnyStr, Tuple
 
 from picotui.widgets import WListBox, Dialog, ACTION_CANCEL, ACTION_PREV, ACTION_NEXT, ACTION_OK
 
@@ -557,21 +557,21 @@ class SelectPathDialog(DynamicDialog):
         return True
 
     def search_widget_last(self, widget):
-        self.search_widget(range(len(widget.items) - 1, widget.cur_line, -1), False, widget)
+        self.search_widget_and_scroll(range(len(widget.items) - 1, widget.cur_line, -1), False, widget)
 
     def search_widget_first(self, widget):
-        self.search_widget(range(0, len(widget.items)), False, widget)
+        self.search_widget_and_scroll(range(0, len(widget.items)), False, widget)
 
     def search_widget_down(self, widget):
-        self.search_widget(range(widget.cur_line + 1, len(widget.items)), False, widget)
+        self.search_widget_and_scroll(range(widget.cur_line + 1, len(widget.items)), False, widget)
 
     def search_widget_up(self, widget):
-        self.search_widget(range(widget.cur_line - 1, -1, -1), False, widget)
+        self.search_widget_and_scroll(range(widget.cur_line - 1, -1, -1), False, widget)
 
     def search_widget_all(self, widget: WListBox, skip_if_on_match=True):
-        return self.search_widget(range(0, len(widget.items)), skip_if_on_match, widget)
+        return self.search_widget_and_scroll(range(0, len(widget.items)), skip_if_on_match, widget)
 
-    def search_widget(self, search_range, skip_if_on_match, widget: WListBox):
+    def search_widget_and_scroll(self, search_range, skip_if_on_match, widget: WListBox):
         if self.folder_lists.search_string != '':
             if skip_if_on_match and model.item_text(widget.items[widget.cur_line]).find(self.folder_lists.search_string) != -1:
                 return
@@ -586,14 +586,32 @@ class SelectPathDialog(DynamicDialog):
                         widget.top_line -= undershoot
                     return i
 
+    def search_widget_get_match_count(self, widget: WListBox):
+        count = 0
+        if self.folder_lists.search_string != '':
+            for i in range(0, len(widget.items)):
+                if model.item_text(widget.items[i]).find(self.folder_lists.search_string) != -1:
+                    count += 1
+            return count
+
+    def search_widgets_all(self) -> Tuple[int, int]:
+        count = 0
+        idx = 0
+        for i in range(0, len(self.folder_lists.boxes)):
+            matches = self.search_widget_get_match_count(self.folder_lists.boxes[i])
+            if matches > 0:
+                count += matches
+                idx = i
+        return count, idx
+
     def search_widgets_right(self) -> Optional[int]:
         return self.search_widgets(range(self.focus_idx, len(self.folder_lists.boxes)))
 
-    def search_widgets(self, search_range) -> Optional[int]:
+    def search_widgets(self, search_range, focus=True) -> Optional[int]:
         for i in search_range:
             box = self.folder_lists.boxes[i]
             res = self.search_widget_all(box, skip_if_on_match=False)
-            if res is not None:
+            if res is not None and focus:
                 self.focus_idx = i
                 return res
         return None
