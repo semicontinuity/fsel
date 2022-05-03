@@ -35,13 +35,13 @@ C_IDX_MATCH_FG = 2
 
 C_FOLDER = [
     # non focused list; non highlighted entry
-    [C_BLACK, C_WHITE, C_B_YELLOW],
+    [C_BLACK, C_B_WHITE, C_B_RED],
     # non focused list; highlighted entry
-    [C_GREEN, C_BLACK, C_B_YELLOW],
+    [C_BLUE, C_B_WHITE, C_B_RED],
     # focused list; non highlighted entry
-    [C_BLACK, C_WHITE, C_B_YELLOW],
+    [C_BLACK, C_B_WHITE, C_B_RED],
     # focused list; highlighted entry
-    [C_CYAN, C_B_WHITE, C_B_YELLOW]
+    [C_CYAN, C_B_WHITE, C_B_RED]
 ]
 
 C_LEAF = [
