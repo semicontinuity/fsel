@@ -544,6 +544,12 @@ class SelectPathDialog(DynamicDialog):
                 self.change_focus(self.folder_lists.boxes[self.focus_idx])
                 self.make_focused_column_visible(True)
                 return True
+        elif key == KEY_ALT_LEFT:
+            res = self.search_widgets_left()
+            if res is not None:
+                self.change_focus(self.folder_lists.boxes[self.focus_idx])
+                self.make_focused_column_visible(True)
+                return True
         elif key == KEY_BACKSPACE:
             self.folder_lists.search_string = self.folder_lists.search_string[:-1]
             # self.search_widget_all(widget)
@@ -568,13 +574,14 @@ class SelectPathDialog(DynamicDialog):
         self.search_widget_and_scroll(range(widget.cur_line - 1, -1, -1), False, widget)
 
     def search_widget_all(self, widget: WListBox, skip_if_on_match=True):
-        return self.search_widget_and_scroll(range(0, len(widget.items)), skip_if_on_match, widget)
+        return self.search_widget_and_scroll(range(widget.cur_line, widget.cur_line + len(widget.items)), skip_if_on_match, widget)
 
     def search_widget_and_scroll(self, search_range, skip_if_on_match, widget: WListBox):
         if self.folder_lists.search_string != '':
             if skip_if_on_match and model.item_text(widget.items[widget.cur_line]).find(self.folder_lists.search_string) != -1:
                 return
-            for i in search_range:
+            for j in search_range:
+                i = j % len(widget.items)
                 if model.item_text(widget.items[i]).find(self.folder_lists.search_string) != -1:
                     widget.cur_line = widget.choice = i
                     overshoot = i - (widget.top_line + widget.height)
@@ -604,7 +611,10 @@ class SelectPathDialog(DynamicDialog):
         return count, idx
 
     def search_widgets_right(self) -> Optional[int]:
-        return self.search_widgets(range(self.focus_idx, len(self.folder_lists.boxes)))
+        return self.search_widgets(range(self.focus_idx + 1, len(self.folder_lists.boxes)))
+
+    def search_widgets_left(self) -> Optional[int]:
+        return self.search_widgets(range(self.focus_idx - 1, -1, -1))
 
     def search_widgets(self, search_range, focus=True) -> Optional[int]:
         for i in search_range:
