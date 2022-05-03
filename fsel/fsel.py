@@ -13,10 +13,19 @@ import sys
 import json
 
 screen = Screen()
+
 KEY_ALT_UP = b'\x1b[1;3A'
 KEY_ALT_DOWN = b'\x1b[1;3B'
 KEY_ALT_PAGE_UP = b'\x1b[5;3~'
 KEY_ALT_PAGE_DOWN = b'\x1b[6;3~'
+
+KEY_ALT_RIGHT = b'\x1b[1;3C'
+KEY_ALT_LEFT = b'\x1b[1;3D'
+KEY_CTRL_RIGHT = b'\x1b[1;5C'
+KEY_CTRL_LEFT = b'\x1b[1;5D'
+
+KEY_CTRL_HOME = b'\x1b[1;5H'
+KEY_CTRL_END = b'\x1b[1;5F'
 
 RECENT_COUNT = 10
 
@@ -529,6 +538,13 @@ class SelectPathDialog(DynamicDialog):
             self.search_widget_first(widget)
         elif key == KEY_ALT_PAGE_DOWN:
             self.search_widget_last(widget)
+        elif key == KEY_ALT_RIGHT:
+            res = self.search_widgets_right()
+            if res is not None:
+                self.change_focus(self.folder_lists.boxes[self.focus_idx])
+                if self.moved_to_make_tail_visible() + self.moved_to_make_head_visible() > 0:
+                    self.redraw()
+                return True
         elif key == KEY_BACKSPACE:
             self.folder_lists.search_string = self.folder_lists.search_string[:-1]
             # self.search_widget_all(widget)
@@ -552,8 +568,8 @@ class SelectPathDialog(DynamicDialog):
     def search_widget_up(self, widget):
         self.search_widget(range(widget.cur_line - 1, -1, -1), False, widget)
 
-    def search_widget_all(self, widget: WListBox):
-        self.search_widget(range(0, len(widget.items)), True, widget)
+    def search_widget_all(self, widget: WListBox, skip_if_on_match=True):
+        return self.search_widget(range(0, len(widget.items)), skip_if_on_match, widget)
 
     def search_widget(self, search_range, skip_if_on_match, widget: WListBox):
         if self.folder_lists.search_string != '':
@@ -569,6 +585,18 @@ class SelectPathDialog(DynamicDialog):
                     if undershoot > 0:
                         widget.top_line -= undershoot
                     return i
+
+    def search_widgets_right(self) -> Optional[int]:
+        return self.search_widgets(range(self.focus_idx, len(self.folder_lists.boxes)))
+
+    def search_widgets(self, search_range) -> Optional[int]:
+        for i in search_range:
+            box = self.folder_lists.boxes[i]
+            res = self.search_widget_all(box, skip_if_on_match=False)
+            if res is not None:
+                self.focus_idx = i
+                return res
+        return None
 
 
 class ItemSelectionDialog(DynamicDialog):
