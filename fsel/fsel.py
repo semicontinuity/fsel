@@ -438,7 +438,11 @@ class SelectPathDialog(DynamicDialog):
                 self.focus_w = child
                 self.focus_idx = i
 
-    def moved_to_make_head_visible(self):
+    def make_focused_column_visible(self, align_to_right: bool):
+        if (self.moved_to_make_tail_visible() if align_to_right else 0) + self.moved_to_make_head_visible() > 0:
+            self.redraw()
+
+    def moved_to_make_head_visible(self) -> int:
         x = self.focus_w.x
         if x < 0:
             self.x -= x
@@ -446,7 +450,7 @@ class SelectPathDialog(DynamicDialog):
             return 1
         return 0
 
-    def moved_to_make_tail_visible(self):
+    def moved_to_make_tail_visible(self) -> int:
         x_to = self.focus_w.x + self.focus_w.width
         if x_to > self.screen_width:
             self.x -= x_to - self.screen_width
@@ -471,23 +475,19 @@ class SelectPathDialog(DynamicDialog):
             else:
                 self.move_focus(1)
 
-            if self.moved_to_make_tail_visible() + self.moved_to_make_head_visible() > 0:
-                self.redraw()
+            self.make_focused_column_visible(True)
         elif key == KEY_LEFT:
             if self.focus_idx != 0:
                 self.move_focus(-1)
-            if self.moved_to_make_head_visible() > 0:
-                self.redraw()
+            self.make_focused_column_visible(False)
         elif key == KEY_HOME:
             self.focus_idx = 0
             self.change_focus(self.folder_lists.boxes[self.focus_idx])
-            if self.moved_to_make_head_visible() > 0:
-                self.redraw()
+            self.make_focused_column_visible(False)
         elif key == KEY_END:
             self.focus_idx = self.folder_lists.index_of_last_list()
             self.change_focus(self.folder_lists.boxes[self.focus_idx])
-            if self.moved_to_make_tail_visible() + self.moved_to_make_head_visible() > 0:
-                self.redraw()
+            self.make_focused_column_visible(True)
         elif self.focus_w:
             if key == KEY_SHIFT_TAB:
                 self.focus_idx = -1
@@ -542,8 +542,7 @@ class SelectPathDialog(DynamicDialog):
             res = self.search_widgets_right()
             if res is not None:
                 self.change_focus(self.folder_lists.boxes[self.focus_idx])
-                if self.moved_to_make_tail_visible() + self.moved_to_make_head_visible() > 0:
-                    self.redraw()
+                self.make_focused_column_visible(True)
                 return True
         elif key == KEY_BACKSPACE:
             self.folder_lists.search_string = self.folder_lists.search_string[:-1]
