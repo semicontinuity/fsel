@@ -475,6 +475,9 @@ class SelectPathDialog(DynamicDialog):
         if key == KEY_ESC and self.finish_on_esc:
             return ACTION_CANCEL
         if key == KEY_RIGHT:
+            self.folder_lists.search_string = ''
+            self.redraw()
+
             if self.focus_idx == len(self.folder_lists.boxes) - 1:
                 if self.folder_lists.try_to_go_in(self.focus_idx):
                     self.layout()
@@ -485,14 +488,23 @@ class SelectPathDialog(DynamicDialog):
 
             self.make_focused_column_visible(True)
         elif key == KEY_LEFT:
+            self.folder_lists.search_string = ''
+            self.redraw()
+
             if self.focus_idx != 0:
                 self.move_focus(-1)
             self.make_focused_column_visible(False)
         elif key == KEY_HOME:
+            self.folder_lists.search_string = ''
+            self.redraw()
+
             self.focus_idx = 0
             self.change_focus(self.folder_lists.boxes[self.focus_idx])
             self.make_focused_column_visible(False)
         elif key == KEY_END:
+            self.folder_lists.search_string = ''
+            self.redraw()
+
             self.focus_idx = self.folder_lists.index_of_last_list()
             self.change_focus(self.folder_lists.boxes[self.focus_idx])
             self.make_focused_column_visible(True)
