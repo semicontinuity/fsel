@@ -118,17 +118,39 @@ class PaintContext:
 p_ctx = PaintContext()
 
 
-class FsModel:
-    def __init__(self, root: AnyStr, select_files: bool, executables: bool, root_history):
+class FsListFiles:
+    def __init__(self, root: AnyStr, select_files: bool, executables: bool):
         self.root = root
         self.select_files = select_files
         self.executables = executables
+
+    def __call__(self, path: List) -> List[str]:
+        full_fs_path = os.path.join(self.root, *path)
+        try:
+            entries: List[str] = os.listdir(full_fs_path)
+            if not self.select_files:
+                return []
+            return [name for name in sorted(entries) if self.is_suitable_file(full_fs_path, name)]
+        except PermissionError:
+            return []
+
+    def is_suitable_file(self, folder, name):
+        return not name.startswith('.') and self.is_suitable_file_path(folder + '/' + name)
+
+    def is_suitable_file_path(self, path):
+        return os.path.isfile(path) and os.access(path, os.X_OK) == self.executables
+
+
+class FsModel:
+    def __init__(self, root: AnyStr, root_history: Dict, file_lister: FsListFiles):
+        self.root = root
+        self.file_lister = file_lister
         self.root_history = root_history
         self.visit_history = {}
 
     def list_items(self, path: List) -> List[Tuple[str, bool]]:
         """ Each item is a tuple; last element of tuple is False for folder and True for file """
-        return [(f, False) for f in self.list_folders(path)] + [(f, True) for f in self.list_files(path)]
+        return [(f, False) for f in self.list_folders(path)] + [(f, True) for f in self.file_lister(path)]
 
     def list_folders(self, path: List) -> List[str]:
         full_fs_path = os.path.join(self.root, *path)
@@ -139,29 +161,8 @@ class FsModel:
         except PermissionError:
             return []
 
-    def list_files(self, path: List) -> List[str]:
-        full_fs_path = os.path.join(self.root, *path)
-        try:
-            entries: List[str] = os.listdir(full_fs_path)
-            if self.select_files:
-                return [name for name in sorted(entries) if self.is_suitable_file(full_fs_path, name)]
-            return []
-        except PermissionError:
-            return []
-
-    def is_suitable_file(self, folder, name):
-        path = folder + '/' + name
-        return not name.startswith('.') and self.is_suitable_file_path(path)
-
-    def is_suitable_file_path(self, path):
-        return os.path.isfile(path) and os.access(path, os.X_OK) == self.executables
-
     def full_path(self, items_path):
-        path = os.path.join(self.root, *[model.item_text(i) for i in items_path])
-        if self.select_files:
-            return path if self.is_suitable_file_path(path) else None
-        else:
-            return path
+        return os.path.join(self.root, *[model.item_text(i) for i in items_path])
 
     def memorize(self, path: List[AnyStr], name: AnyStr, persistent: bool):
         storage = self.root_history if persistent else self.visit_history
@@ -777,7 +778,7 @@ class App:
 
     def select_in_panes(self, target_is_file: bool, target_is_executable: bool):
         root_history = field_or_else(self.settings_for_root, 'history', {})
-        fs_model = FsModel(self.root, target_is_file, target_is_executable, root_history)
+        fs_model = FsModel(self.root, root_history, FsListFiles(self.root, target_is_file, target_is_executable))
 
         rel_path = os.path.relpath(self.folder, self.root)
         initial_path = rel_path.split('/') if rel_path != '.' else []
