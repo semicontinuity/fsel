@@ -44,7 +44,7 @@ bind -x '"\e]": "__fsel_widget__ -f"'
 # ALT-SHIFT-]: insert the relative file path from root into command line
 bind -x '"\e}": "__fsel_widget__ -R -f"'
 
-# CTRL-ALT-]: insert the full path of  one of the recent files into command line
+# CTRL-ALT-]: insert the full path of one of the recent files into command line
 bind -x '"\e\C-]": "__fsel_widget__ -e -f"'
 
 
@@ -57,5 +57,5 @@ bind -x '"\eg": "__fsel_widget__"'
 # ALT-SHIFT-G: insert the relative path to folder from root into command line
 bind -x '"\eG": "__fsel_widget__ -R"'
 
-# CTRL-ALT-G: insert the full path of  one of the recent folders into command line
+# CTRL-ALT-G: insert the full path of one of the recent folders into command line
 bind -x '"\e\C-G": "__fsel_widget__ -e"'

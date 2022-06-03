@@ -1,6 +1,6 @@
 from typing import Optional, List, Dict, AnyStr, Tuple
 
-from picotui.widgets import WListBox, Dialog, ACTION_CANCEL, ACTION_PREV, ACTION_NEXT, ACTION_OK
+from picotui.widgets import WListBox, Dialog, ACTION_CANCEL, ACTION_OK
 
 from .picotui_patch import patch_picotui
 
@@ -46,13 +46,13 @@ C_FOLDER = [
 
 C_LEAF = [
     # non focused list; non highlighted entry
-    [C_BLACK, C_BLUE, C_B_YELLOW],
+    [C_BLACK, C_CYAN, C_B_RED],
     # non focused list; highlighted entry
-    [C_GREEN, C_BLACK, C_B_YELLOW],
+    [C_BLUE, C_BLACK, C_B_RED],
     # focused list; non highlighted entry
-    [C_BLACK, C_BLUE, C_B_YELLOW],
+    [C_BLACK, C_CYAN, C_B_RED],
     # focused list; highlighted entry
-    [C_CYAN, C_WHITE, C_B_YELLOW]
+    [C_CYAN, C_BLACK, C_B_RED]
 ]
 
 
@@ -119,26 +119,33 @@ p_ctx = PaintContext()
 
 
 class FsModel:
-    def __init__(self, root: AnyStr, show_files: bool, executables: bool, root_history):
+    def __init__(self, root: AnyStr, select_files: bool, executables: bool, root_history):
         self.root = root
-        self.select_files = show_files
+        self.select_files = select_files
         self.executables = executables
         self.root_history = root_history
         self.visit_history = {}
 
-    def list_items(self, path: List) -> List:
+    def list_items(self, path: List) -> List[Tuple[str, bool]]:
+        """ Each item is a tuple; last element of tuple is False for folder and True for file """
+        return [(f, False) for f in self.list_folders(path)] + [(f, True) for f in self.list_files(path)]
+
+    def list_folders(self, path: List) -> List[str]:
         full_fs_path = os.path.join(self.root, *path)
         try:
             entries: List[str] = os.listdir(full_fs_path)
-            items = [(name, False) for name in sorted(entries) if
-                             os.path.isdir(full_fs_path + '/' + name) and not name.startswith('.')]
-            if self.select_files:
-                items += [
-                    (name, True) for name in sorted(entries)
-                    if self.is_suitable_file(full_fs_path, name)
-                ]
-            return items
+            return [name for name in sorted(entries)
+                     if os.path.isdir(full_fs_path + '/' + name) and not name.startswith('.')]
+        except PermissionError:
+            return []
 
+    def list_files(self, path: List) -> List[str]:
+        full_fs_path = os.path.join(self.root, *path)
+        try:
+            entries: List[str] = os.listdir(full_fs_path)
+            if self.select_files:
+                return [name for name in sorted(entries) if self.is_suitable_file(full_fs_path, name)]
+            return []
         except PermissionError:
             return []
 
@@ -727,23 +734,6 @@ def settings_file():
     return os.getenv("HOME") + "/.fsel_history"
 
 
-def find_root_for(folder, roots):
-    path = folder if not folder.endswith('/') else folder[:len(folder) - 1]
-
-    while True:
-        if path in roots:
-            return False, str(path)
-        if path == os.getenv('HOME') or path == '' or path.startswith('.'):
-            return False, path
-
-        contents = os.listdir(path)
-        if '.svn' in contents or '.git' in contents:
-            return True, path
-
-        i = path.rfind('/')
-        path = path[:i]
-
-
 def field_or_else(d: Dict, name, default):
     result = d.get(name)
     if result is None:
@@ -751,40 +741,45 @@ def field_or_else(d: Dict, name, default):
     return result
 
 
-def file_ops(folder):
-    target_is_file = '-f' in sys.argv[1:]
-    target_is_executable = '-x' in sys.argv[1:]
+def update_recents(recent, rel_path_from_root):
+    if rel_path_from_root != '.':
+        if rel_path_from_root in recent:
+            recent.remove(rel_path_from_root)
+        recent.insert(0, rel_path_from_root)
+        del recent[RECENT_COUNT:]
 
-    settings = load_settings()
-    vcs_root_detected, root = find_root_for(folder, settings)
-    if vcs_root_detected:
-        settings[root] = {}
-    settings_for_root = field_or_else(settings, root, {})
-    recent = field_or_else(settings_for_root, field_for_recent(target_is_file, target_is_executable), [])
 
-    if '-e' in sys.argv[1:]:
-        if len(recent) == 0:
-            sys.exit(2)
+class App:
+    def __init__(self, folder: str, field_for_recent: str):
+        self.folder = folder
+        self.settings = load_settings()
+        vcs_root_detected, self.root = self.find_root()
+        if vcs_root_detected:
+            self.settings[self.root] = {}
+        self.settings_for_root = field_or_else(self.settings, self.root, {})
+        self.recent = field_or_else(self.settings_for_root, field_for_recent, [])
 
-        # makes little sense to cd to the current directory...
-        if recent[0] == os.path.relpath(os.environ["PWD"], root) and len(recent) > 1:   # PWD for logical path
-            recent[0], recent[1] = recent[1], recent[0]
+    def find_root(self):
+        path = self.folder if not self.folder.endswith('/') else self.folder[:len(self.folder) - 1]
 
-        recent_items = [(name, False) for name in recent]
-        items_path = run(
-            lambda screen_height, screen_width, cursor_y, cursor_x:
-            ItemSelectionDialog(screen_height, screen_width, 0, 0, cursor_y, recent_items)
-        )
-        if items_path is None:
-            sys.exit(1)
-        path = full_path(root, model.item_text(items_path[0]))
-        if path is None:
-            sys.exit(1)
-    else:
-        root_history = field_or_else(settings_for_root, 'history', {})
-        fs_model = FsModel(root, target_is_file, target_is_executable, root_history)
+        while True:
+            if path in self.settings:
+                return False, str(path)
+            if path == os.getenv('HOME') or path == '' or path.startswith('.'):
+                return False, path
 
-        rel_path = os.path.relpath(folder, root)
+            contents = os.listdir(path)
+            if '.svn' in contents or '.git' in contents:
+                return True, path
+
+            i = path.rfind('/')
+            path = path[:i]
+
+    def select_in_panes(self, target_is_file: bool, target_is_executable: bool):
+        root_history = field_or_else(self.settings_for_root, 'history', {})
+        fs_model = FsModel(self.root, target_is_file, target_is_executable, root_history)
+
+        rel_path = os.path.relpath(self.folder, self.root)
         initial_path = rel_path.split('/') if rel_path != '.' else []
         folder_lists = ListBoxes(fs_model, initial_path)
         if folder_lists.is_empty():
@@ -796,44 +791,52 @@ def file_ops(folder):
         )
         if items_path is None:
             sys.exit(1)
-        path = fs_model.full_path(items_path)
-        if path is None:
+        return fs_model.full_path(items_path)
+
+    def select_recent(self):
+        if len(self.recent) == 0:
+            sys.exit(2)
+
+        # makes little sense to cd to the current directory...
+        if self.recent[0] == os.path.relpath(os.environ["PWD"], self.root) and len(self.recent) > 1:  # PWD for logical path
+            self.recent[0], self.recent[1] = self.recent[1], self.recent[0]
+
+        recent_items = [(name, False) for name in self.recent]
+        items_path = run(
+            lambda screen_height, screen_width, cursor_y, cursor_x:
+            ItemSelectionDialog(screen_height, screen_width, 0, 0, cursor_y, recent_items)
+        )
+        if items_path is None:
             sys.exit(1)
-
-    rel_path_from_root = os.path.relpath(path, start=root)
-    update_recents(recent, rel_path_from_root)
-    save_settings(settings)
-
-    print(to_requested_kind(path, rel_path_from_root))
-
-
-def field_for_recent(target_is_file, target_is_executable):
-    if target_is_file:
-        return 'recent-executables' if target_is_executable else 'recent-files'
-    else:
-        return 'recent-folders'
-
-
-def update_recents(recent, rel_path_from_root):
-    if rel_path_from_root != '.':
-        if rel_path_from_root in recent:
-            recent.remove(rel_path_from_root)
-        recent.insert(0, rel_path_from_root)
-        del recent[RECENT_COUNT:]
-
-
-def to_requested_kind(path, rel_path_from_root):
-    ret_rel_path = '-r' in sys.argv[1:]
-    ret_rel_path_from_root = '-R' in sys.argv[1:]
-    if ret_rel_path:
-        return os.path.relpath(path)
-    elif ret_rel_path_from_root:
-        return rel_path_from_root
-    else:
-        return path
+        return full_path(self.root, model.item_text(items_path[0]))
 
 
 if __name__ == "__main__":
     if sys.stdin.isatty():
         path_args = [arg for arg in sys.argv[1:] if not arg.startswith('-')]
-        file_ops(os.getenv('PWD') if len(path_args) != 1 else path_args[0])
+        target_is_file = '-f' in sys.argv[1:]
+        target_is_executable = '-x' in sys.argv[1:]
+        if target_is_file:
+            field_for_recent = 'recent-executables' if target_is_executable else 'recent-files'
+        else:
+            field_for_recent = 'recent-folders'
+
+        app = App(os.getenv('PWD') if len(path_args) != 1 else path_args[0], field_for_recent)
+        path = app.select_recent() if '-e' in sys.argv[1:] else app.select_in_panes(target_is_file, target_is_executable)
+        if path is None:
+            sys.exit(1)
+
+        rel_path_from_root = os.path.relpath(path, start=app.root)
+        update_recents(app.recent, rel_path_from_root)
+        save_settings(app.settings)
+        ret_rel_path = '-r' in sys.argv[1:]
+        ret_rel_path_from_root = '-R' in sys.argv[1:]
+
+        if ret_rel_path:
+            res = os.path.relpath(path)
+        elif ret_rel_path_from_root:
+            res = rel_path_from_root
+        else:
+            res = path
+
+        print(res)
