@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict, AnyStr, Tuple
+from typing import Optional, List, Dict, AnyStr, Tuple, Callable
 
 from picotui.widgets import WListBox, Dialog, ACTION_CANCEL, ACTION_OK
 
@@ -124,8 +124,8 @@ class FsListFiles:
         self.select_files = select_files
         self.executables = executables
 
-    def __call__(self, path: List) -> List[str]:
-        full_fs_path = os.path.join(self.root, *path)
+    def __call__(self, p: List) -> List[str]:
+        full_fs_path = os.path.join(self.root, *p)
         try:
             entries: List[str] = os.listdir(full_fs_path)
             if not self.select_files:
@@ -142,7 +142,7 @@ class FsListFiles:
 
 
 class FsModel:
-    def __init__(self, root: AnyStr, root_history: Dict, file_lister: FsListFiles):
+    def __init__(self, root: AnyStr, root_history: Dict, file_lister: Callable[[List], List[str]]):
         self.root = root
         self.file_lister = file_lister
         self.root_history = root_history
@@ -776,9 +776,9 @@ class App:
             i = path.rfind('/')
             path = path[:i]
 
-    def select_in_panes(self, target_is_file: bool, target_is_executable: bool):
+    def select_in_panes(self, file_lister: Callable[[List], List[str]]):
         root_history = field_or_else(self.settings_for_root, 'history', {})
-        fs_model = FsModel(self.root, root_history, FsListFiles(self.root, target_is_file, target_is_executable))
+        fs_model = FsModel(self.root, root_history, file_lister)
 
         rel_path = os.path.relpath(self.folder, self.root)
         initial_path = rel_path.split('/') if rel_path != '.' else []
@@ -823,7 +823,13 @@ if __name__ == "__main__":
             field_for_recent = 'recent-folders'
 
         app = App(os.getenv('PWD') if len(path_args) != 1 else path_args[0], field_for_recent)
-        path = app.select_recent() if '-e' in sys.argv[1:] else app.select_in_panes(target_is_file, target_is_executable)
+
+        if '-e' in sys.argv[1:]:
+            path = app.select_recent()
+        else:
+            file_lister = FsListFiles(app.root, target_is_file, target_is_executable)
+            path = app.select_in_panes(file_lister)
+
         if path is None:
             sys.exit(1)
 
