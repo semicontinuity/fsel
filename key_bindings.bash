@@ -1,5 +1,15 @@
 #!/bin/bash
 
+__fsel_cat__() {
+  local file
+  file=$(python3 -m fsel.fsel -r -f "$@") && printf "${PAGER:-less} $file"
+}
+
+__fsel_edit__() {
+  local file
+  file=$(python3 -m fsel.fsel -r -f "$@") && printf "${EDITOR:-nano} $file"
+}
+
 __fsel_cd__() {
   local dir
   dir=$(python3 -m fsel.fsel "$@") && printf 'cd %q' "$dir"
@@ -15,6 +25,13 @@ __fsel_widget__() {
   READLINE_LINE="${READLINE_LINE:0:$READLINE_POINT}$selected${READLINE_LINE:$READLINE_POINT}"
   READLINE_POINT=$(( READLINE_POINT + ${#selected} ))
 }
+
+
+# Alt+Q: view selected file
+bind '"\eq": "$(__fsel_cat__)\e\C-e\C-m"'
+
+# Alt+Shift+Q: edit selected file
+bind '"\eQ": "$(__fsel_edit__)\e\C-e\C-m"'
 
 
 # CTRL-ALT-Space: run selected executable
