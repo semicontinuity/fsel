@@ -440,6 +440,7 @@ class SelectPathDialog(DynamicDialog):
         self.screen_width = screen_width
         self.folder_lists = folder_lists
         self.layout()
+        self.make_focused_column_visible(True)
 
     def layout(self):
         self.request_height(self.folder_lists.max_child_height())
