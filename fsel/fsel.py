@@ -138,7 +138,10 @@ class FsListFiles:
         return not name.startswith('.') and self.is_suitable_file_path(folder + '/' + name)
 
     def is_suitable_file_path(self, path):
-        return os.path.isfile(path) and os.access(path, os.X_OK) == self.executables
+        is_file = os.path.isfile(path)
+        if not is_file: return False
+        if self.executables: return os.access(path, os.X_OK)
+        return True
 
 
 class FsModel:
@@ -294,6 +297,12 @@ class CustomListBox(WListBox):
 
         p_ctx.clear_num_pos(self.width - len(l))
         self.attr_reset()
+
+    def handle_cursor_keys(self, key):
+        result = super().handle_cursor_keys(key)
+        self.make_cur_line_visible()
+        self.redraw()
+        return result
 
 
 class ListBoxes:
@@ -485,8 +494,6 @@ class SelectPathDialog(DynamicDialog):
             return ACTION_CANCEL
         if key == KEY_RIGHT:
             self.folder_lists.search_string = ''
-            self.redraw()
-
             if self.focus_idx == len(self.folder_lists.boxes) - 1:
                 if self.folder_lists.try_to_go_in(self.focus_idx):
                     self.layout()
@@ -496,27 +503,29 @@ class SelectPathDialog(DynamicDialog):
                 self.move_focus(1)
 
             self.make_focused_column_visible(True)
+            self.folder_lists.boxes[self.focus_idx].make_cur_line_visible()
+            self.redraw()
         elif key == KEY_LEFT:
             self.folder_lists.search_string = ''
-            self.redraw()
-
             if self.focus_idx != 0:
                 self.move_focus(-1)
             self.make_focused_column_visible(False)
+            self.folder_lists.boxes[self.focus_idx].make_cur_line_visible()
+            self.redraw()
         elif key == KEY_HOME:
             self.folder_lists.search_string = ''
-            self.redraw()
-
             self.focus_idx = 0
             self.change_focus(self.folder_lists.boxes[self.focus_idx])
             self.make_focused_column_visible(False)
+            self.folder_lists.boxes[self.focus_idx].make_cur_line_visible()
+            self.redraw()
         elif key == KEY_END:
             self.folder_lists.search_string = ''
-            self.redraw()
-
             self.focus_idx = self.folder_lists.index_of_last_list()
             self.change_focus(self.folder_lists.boxes[self.focus_idx])
             self.make_focused_column_visible(True)
+            self.folder_lists.boxes[self.focus_idx].make_cur_line_visible()
+            self.redraw()
         elif self.focus_w:
             if key == KEY_SHIFT_TAB:
                 self.focus_idx = -1
