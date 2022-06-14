@@ -779,12 +779,18 @@ class App:
             if path == os.getenv('HOME') or path == '' or path.startswith('.'):
                 return False, path
 
-            contents = os.listdir(path)
-            if '.svn' in contents or '.git' in contents:
-                return True, path
 
             i = path.rfind('/')
-            path = path[:i]
+            parent_path = path[:i]
+
+            try:
+                contents = os.listdir(path)
+                if '.svn' in contents or '.git' in contents:
+                    return True, path
+            except: # folder may have been deleted
+                self.folder = parent_path
+
+            path = parent_path
 
     def select_in_panes(self, file_lister: Callable[[List], List[str]]):
         root_history = field_or_else(self.settings_for_root, 'history', {})
