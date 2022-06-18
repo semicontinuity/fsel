@@ -46,11 +46,11 @@ C_FOLDER = [
 
 C_LEAF = [
     # non focused list; non highlighted entry
-    [C_BLACK, C_CYAN, C_B_RED],
+    [C_BLACK, 248, C_B_RED],
     # non focused list; highlighted entry
-    [C_BLUE, C_BLACK, C_B_RED],
+    [C_BLUE, 248, C_B_RED],
     # focused list; non highlighted entry
-    [C_BLACK, C_CYAN, C_B_RED],
+    [C_BLACK, 248, C_B_RED],
     # focused list; highlighted entry
     [C_CYAN, C_BLACK, C_B_RED]
 ]
@@ -303,6 +303,10 @@ class CustomListBox(WListBox):
         self.make_cur_line_visible()
         self.redraw()
         return result
+
+    @staticmethod
+    def attr_color(fg, bg=-1):
+        Screen.wr("\x1b[38;5;%d;48;5;%dm" % (fg, bg))
 
 
 class ListBoxes:
