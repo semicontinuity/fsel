@@ -1,3 +1,4 @@
+from stat import S_ISVTX, S_ISGID
 from typing import Optional, List, Dict, AnyStr, Tuple, Callable
 
 from picotui.widgets import WListBox, Dialog, ACTION_CANCEL, ACTION_OK
@@ -28,32 +29,6 @@ KEY_CTRL_HOME = b'\x1b[1;5H'
 KEY_CTRL_END = b'\x1b[1;5F'
 
 RECENT_COUNT = 10
-
-C_IDX_BG = 0
-C_IDX_REG_FG = 1
-C_IDX_MATCH_FG = 2
-
-C_FOLDER = [
-    # non focused list; non highlighted entry
-    [C_BLACK, C_B_WHITE, C_B_RED],
-    # non focused list; highlighted entry
-    [C_BLUE, C_B_WHITE, C_B_RED],
-    # focused list; non highlighted entry
-    [C_BLACK, C_B_WHITE, C_B_RED],
-    # focused list; highlighted entry
-    [C_CYAN, C_B_WHITE, C_B_RED]
-]
-
-C_LEAF = [
-    # non focused list; non highlighted entry
-    [C_BLACK, 248, C_B_RED],
-    # non focused list; highlighted entry
-    [C_BLUE, 248, C_B_RED],
-    # focused list; non highlighted entry
-    [C_BLACK, 248, C_B_RED],
-    # focused list; highlighted entry
-    [C_CYAN, C_BLACK, C_B_RED]
-]
 
 
 class PaintContext:
@@ -125,12 +100,12 @@ class FsListFiles:
         self.executables = executables
 
     def __call__(self, p: List) -> List[Tuple[str, int]]:
+        if not self.select_files:
+            return []
         full_fs_path = os.path.join(self.root, *p)
         try:
-            entries: List[str] = os.listdir(full_fs_path)
-            if not self.select_files:
-                return []
-            return [(name, 0) for name in sorted(entries) if self.is_suitable_file(full_fs_path, name)]
+            name: List[str] = os.listdir(full_fs_path)
+            return [(entry, 0) for entry in sorted(name) if self.is_suitable_file(full_fs_path, entry)]
         except PermissionError:
             return []
 
@@ -161,8 +136,8 @@ class FsModel:
             result = []
             for entry in os.scandir(full_fs_path):
                 if entry.is_dir() and not entry.name.startswith('.'):
-                    result.append((entry.name, entry.stat().st_mode))
-            return result
+                    result.append((entry.name, entry.stat().st_mode | ItemModel.FLAG_DIRECTORY))
+            return sorted(result, key=lambda e: e[0])
         except PermissionError:
             return []
 
@@ -221,8 +196,13 @@ class JsonModel:
 
 
 class ItemModel:
+    FLAG_DIRECTORY = 0x8000
+
+    def attrs(self, item: Tuple[str, int]):
+        return item[1]
+
     def is_leaf(self, item: Tuple[str, int]):
-        return item[1] == 0
+        return (item[1] & ItemModel.FLAG_DIRECTORY) == 0
 
     def max_item_text_length(self, items):
         return max(len(item[0]) for item in items)
@@ -268,31 +248,30 @@ class CustomListBox(WListBox):
 
     def show_real_line(self, item, i):
         search_string = self.search_string_supplier()
-        is_leaf = item_model.is_leaf(item)
         l = item_model.item_text(item)
         match_from = -1 if len(search_string) <= 0 else l.find(search_string)
         match_to = match_from + len(search_string)
         l = l[:self.width]
         match_from = min(match_from, self.width)
         match_to = min(match_to, self.width)
-
-        palette = (C_LEAF if is_leaf else C_FOLDER)[2 * int(self.focus) + int(self.cur_line == i)]
+        palette = colors.palette(item_model.attrs(item), self.focus, self.cur_line == i)
 
         if match_from != -1:
             self.attr_reset()
-            self.attr_color(palette[C_IDX_REG_FG], palette[C_IDX_BG])
+            self.attr_color(palette[Colorizer.C_IDX_REG_FG], palette[Colorizer.C_IDX_BG])
+
             p_ctx.paint_string(l[:match_from])
 
             self.attr_reset()
-            self.attr_color(palette[C_IDX_MATCH_FG], palette[C_IDX_BG])
+            self.attr_color(palette[Colorizer.C_IDX_MATCH_FG], palette[Colorizer.C_IDX_BG])
             p_ctx.paint_string(l[match_from: match_to])
 
             self.attr_reset()
-            self.attr_color(palette[C_IDX_REG_FG], palette[C_IDX_BG])
+            self.attr_color(palette[Colorizer.C_IDX_REG_FG], palette[Colorizer.C_IDX_BG])
             p_ctx.paint_string(l[match_to:])
         else:
             self.attr_reset()
-            self.attr_color(palette[C_IDX_REG_FG], palette[C_IDX_BG])
+            self.attr_color(palette[Colorizer.C_IDX_REG_FG], palette[Colorizer.C_IDX_BG])
             p_ctx.paint_string(l)
 
         p_ctx.clear_num_pos(self.width - len(l))
@@ -832,6 +811,72 @@ class App:
         return full_path(self.root, item_model.item_text(items_path[0]))
 
 
+class Colorizer:
+    C_IDX_BG = 0
+    C_IDX_REG_FG = 1
+    C_IDX_MATCH_FG = 2
+
+    C_STICKY_FOLDER = [
+        # non focused list; non highlighted entry
+        [C_BLACK, 227, C_B_RED],
+        # non focused list; highlighted entry
+        [17, 227, C_B_RED],
+        # focused list; non highlighted entry
+        [C_BLACK, 227, C_B_RED],
+        # focused list; highlighted entry
+        [31, 227, C_B_RED]
+    ]
+
+    C_SGID_FOLDER = [
+        # non focused list; non highlighted entry
+        [C_BLACK, 120, C_B_RED],
+        # non focused list; highlighted entry
+        [17, 120, C_B_RED],
+        # focused list; non highlighted entry
+        [C_BLACK, 120, C_B_RED],
+        # focused list; highlighted entry
+        [31, 46, C_B_RED]
+    ]
+
+    C_FOLDER = [
+        # non focused list; non highlighted entry
+        [C_BLACK, C_B_WHITE, C_B_RED],
+        # non focused list; highlighted entry
+        [17, C_B_WHITE, C_B_RED],
+        # focused list; non highlighted entry
+        [C_BLACK, C_B_WHITE, C_B_RED],
+        # focused list; highlighted entry
+        [31, C_B_WHITE, C_B_RED]
+    ]
+
+    C_LEAF = [
+        # non focused list; non highlighted entry
+        [C_BLACK, 248, C_B_RED],
+        # non focused list; highlighted entry
+        [17, 248, C_B_RED],
+        # focused list; non highlighted entry
+        [C_BLACK, 248, C_B_RED],
+        # focused list; highlighted entry
+        [31, C_BLACK, C_B_RED]
+    ]
+
+    @staticmethod
+    def palette(attrs: int, focused_list: bool, focused_entry: bool) -> List[int]:
+        """ category: one of C_IDX_* constants """
+
+        if (attrs & ItemModel.FLAG_DIRECTORY) and (attrs & S_ISVTX):
+            palette = Colorizer.C_STICKY_FOLDER
+        elif (attrs & ItemModel.FLAG_DIRECTORY) and (attrs & S_ISGID):
+            palette = Colorizer.C_SGID_FOLDER
+        elif attrs & ItemModel.FLAG_DIRECTORY:
+            palette = Colorizer.C_FOLDER
+        else:
+            palette = Colorizer.C_LEAF
+
+        return palette[2 * int(focused_list) + int(focused_entry)]
+
+
+colors = Colorizer()
 item_model = ItemModel()
 
 
