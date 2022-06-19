@@ -11,7 +11,6 @@ from fsel.picotui_patch import *
 from picotui.defs import *
 import os
 import sys
-import json
 
 screen = Screen()
 
@@ -677,7 +676,7 @@ class ItemSelectionDialog(DynamicDialog):
         return [self.focus_w.items[self.focus_w.cur_line]]
 
 
-def run(dialog_supplier):
+def run_dialog(dialog_supplier):
     v = None
     try:
         Screen.init_tty()
@@ -708,26 +707,6 @@ def full_path(root, rel_path):
     return root + rel_path
 
 
-def load_settings():
-    try:
-        with open(settings_file()) as json_file:
-            return json.load(json_file)
-    except:
-        return {}
-
-
-def save_settings(settings):
-    try:
-        with open(settings_file(), 'w') as f:
-            json.dump(settings, f, indent=2, sort_keys=True)
-    except Exception as e:
-        pass
-
-
-def settings_file():
-    return os.getenv("HOME") + "/.fsel_history"
-
-
 def field_or_else(d: Dict, name, default):
     result = d.get(name)
     if result is None:
@@ -741,74 +720,6 @@ def update_recents(recent, rel_path_from_root):
             recent.remove(rel_path_from_root)
         recent.insert(0, rel_path_from_root)
         del recent[RECENT_COUNT:]
-
-
-class App:
-    def __init__(self, folder: str, field_for_recent: str):
-        self.folder = folder
-        self.settings = load_settings()
-        vcs_root_detected, self.root = self.find_root()
-        if vcs_root_detected:
-            self.settings[self.root] = {}
-        self.settings_for_root = field_or_else(self.settings, self.root, {})
-        self.recent = field_or_else(self.settings_for_root, field_for_recent, [])
-
-    def find_root(self):
-        path = self.folder if not self.folder.endswith('/') else self.folder[:len(self.folder) - 1]
-
-        while True:
-            if path in self.settings:
-                return False, str(path)
-            if path == os.getenv('HOME') or path == '' or path.startswith('.'):
-                return False, path
-
-
-            i = path.rfind('/')
-            parent_path = path[:i]
-
-            try:
-                contents = os.listdir(path)
-                if '.svn' in contents or '.git' in contents:
-                    return True, path
-            except: # folder may have been deleted
-                self.folder = parent_path
-
-            path = parent_path
-
-    def select_in_panes(self, file_lister: Callable[[List], List[Tuple[str, int]]]):
-        root_history = field_or_else(self.settings_for_root, 'history', {})
-        fs_model = FsModel(self.root, root_history, file_lister)
-
-        rel_path = os.path.relpath(self.folder, self.root)
-        initial_path = rel_path.split('/') if rel_path != '.' else []
-        folder_lists = ListBoxes(fs_model, initial_path)
-        if folder_lists.is_empty():
-            sys.exit(2)
-
-        items_path = run(
-            lambda screen_height, screen_width, cursor_y, cursor_x:
-            SelectPathDialog(folder_lists, screen_width, screen_height, width=1000, height=0, x=0, y=cursor_y)
-        )
-        if items_path is None:
-            sys.exit(1)
-        return fs_model.full_path(items_path)
-
-    def select_recent(self):
-        if len(self.recent) == 0:
-            sys.exit(2)
-
-        # makes little sense to cd to the current directory...
-        if self.recent[0] == os.path.relpath(os.environ["PWD"], self.root) and len(self.recent) > 1:  # PWD for logical path
-            self.recent[0], self.recent[1] = self.recent[1], self.recent[0]
-
-        recent_items = [(name, False) for name in self.recent]
-        items_path = run(
-            lambda screen_height, screen_width, cursor_y, cursor_x:
-            ItemSelectionDialog(screen_height, screen_width, 0, 0, cursor_y, recent_items)
-        )
-        if items_path is None:
-            sys.exit(1)
-        return full_path(self.root, item_model.item_text(items_path[0]))
 
 
 class Colorizer:
@@ -878,39 +789,3 @@ class Colorizer:
 
 colors = Colorizer()
 item_model = ItemModel()
-
-
-if __name__ == "__main__":
-    if sys.stdin.isatty():
-        path_args = [arg for arg in sys.argv[1:] if not arg.startswith('-')]
-        target_is_file = '-f' in sys.argv[1:]
-        target_is_executable = '-x' in sys.argv[1:]
-        if target_is_file:
-            field_for_recent = 'recent-executables' if target_is_executable else 'recent-files'
-        else:
-            field_for_recent = 'recent-folders'
-
-        app = App(os.getenv('PWD') if len(path_args) != 1 else path_args[0], field_for_recent)
-
-        if '-e' in sys.argv[1:]:
-            path = app.select_recent()
-        else:
-            path = app.select_in_panes(FsListFiles(app.root, target_is_file, target_is_executable))
-
-        if path is None:
-            sys.exit(1)
-
-        rel_path_from_root = os.path.relpath(path, start=app.root)
-        update_recents(app.recent, rel_path_from_root)
-        save_settings(app.settings)
-        ret_rel_path = '-r' in sys.argv[1:]
-        ret_rel_path_from_root = '-R' in sys.argv[1:]
-
-        if ret_rel_path:
-            res = os.path.relpath(path)
-        elif ret_rel_path_from_root:
-            res = rel_path_from_root
-        else:
-            res = path
-
-        print(res)

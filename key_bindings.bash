@@ -2,26 +2,26 @@
 
 __fsel_cat__() {
   local file
-  file=$(python3 -m fsel.fsel -r -f "$@") && printf "${PAGER:-less} $file"
+  file=$(python3 -m fsel.app -r -f "$@") && printf "${PAGER:-less} $file"
 }
 
 __fsel_edit__() {
   local file
-  file=$(python3 -m fsel.fsel -r -f "$@") && printf "${EDITOR:-nano} $file"
+  file=$(python3 -m fsel.app -r -f "$@") && printf "${EDITOR:-nano} $file"
 }
 
 __fsel_cd__() {
   local dir
-  dir=$(python3 -m fsel.fsel "$@") && printf 'cd %q' "$dir"
+  dir=$(python3 -m fsel.app "$@") && printf 'cd %q' "$dir"
 }
 
 __fsel_run__() {
   local file
-  file=$(python3 -m fsel.fsel -f -x "$@") && printf '%q' "$file"
+  file=$(python3 -m fsel.app -f -x "$@") && printf '%q' "$file"
 }
 
 __fsel_widget__() {
-  local selected=$(python3 -m fsel.fsel "$@")
+  local selected=$(python3 -m fsel.app "$@")
   READLINE_LINE="${READLINE_LINE:0:$READLINE_POINT}$selected${READLINE_LINE:$READLINE_POINT}"
   READLINE_POINT=$(( READLINE_POINT + ${#selected} ))
 }
