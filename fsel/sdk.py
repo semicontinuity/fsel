@@ -119,11 +119,9 @@ class FsListFiles:
 
 
 class FsModel:
-    def __init__(self, root: AnyStr, root_history: Dict, file_lister: Callable[[List], List[Tuple[str, int]]]):
+    def __init__(self, root: AnyStr, file_lister: Callable[[List], List[Tuple[str, int]]]):
         self.root = root
         self.file_lister = file_lister
-        self.root_history = root_history
-        self.visit_history = {}
 
     def list_items(self, path: List) -> List[Tuple[str, int]]:
         """ Each item is a tuple; last element of tuple is int with item attributes (same as in st_mode) """
@@ -143,30 +141,16 @@ class FsModel:
     def full_path(self, items_path):
         return os.path.join(self.root, *[item_model.item_text(i) for i in items_path])
 
+
+class Oracle:
     def memorize(self, path: List[AnyStr], name: AnyStr, persistent: bool):
-        storage = self.root_history if persistent else self.visit_history
-        storage[self.string_path(path)] = name
+        pass
 
     def recall_chosen_name(self, path):
-        string_path = self.string_path(path)
-        return self.visit_history.get(string_path) or \
-               self.root_history.get(string_path)
+        pass
 
     def recall_choice(self, path, items):
-        string_path = self.string_path(path)
-        return FsModel.recall_choice_in(self.visit_history, string_path, items) or \
-               FsModel.recall_choice_in(self.root_history, string_path, items)
-
-    @staticmethod
-    def recall_choice_in(storage, path, items):
-        if path in storage:
-            last_name = storage[path]
-            if last_name is not None:
-                return item_model.index_of_item_text(last_name, items)
-
-    @staticmethod
-    def string_path(path):
-        return '/'.join(path)
+        pass
 
 
 class JsonModel:
@@ -209,7 +193,7 @@ class ItemModel:
     def item_text(self, item: Tuple[str, int]):
         return item[0]
 
-    def index_of_item_text(self, text, items):
+    def index_of_item_text(self, text, items) -> int:
         for i, item in enumerate(items):
             if text == self.item_text(item):
                 return i
@@ -291,8 +275,9 @@ class ListBoxes:
     boxes: List[CustomListBox]
     search_string: str = ''
 
-    def __init__(self, tree_model, initial_path):
+    def __init__(self, tree_model, oracle: Oracle, initial_path):
         self.tree_model = tree_model
+        self.oracle = oracle
         self.boxes = self.boxes_for_path(initial_path)
         self.expand_lists()
 
@@ -322,7 +307,7 @@ class ListBoxes:
             if self.is_at_leaf(index):
                 break
             path = self.path(index)
-            name = self.tree_model.recall_chosen_name(path)
+            name = self.oracle.recall_chosen_name(path)
             index += 1
             a_list = self.make_box_or_none(path)
             if a_list is None or a_list.cur_line is None:
@@ -360,13 +345,13 @@ class ListBoxes:
 
     def make_box(self, path, items: List[Tuple[str, int]]):
         box = CustomListBox(item_model.max_item_text_length(items), len(items), items, path, lambda: self.search_string)
-        choice = self.tree_model.recall_choice(path, items)
+        choice = self.oracle.recall_choice(path, items)
         box.cur_line = box.choice = 0 if choice is None else choice
         return box
 
     def memorize_choice_in_list(self, index, persistent: bool):
         parent_path = [] if index == 0 else self.path(index - 1)
-        self.tree_model.memorize(parent_path, item_model.item_text(self.selected_item_in_list(index)), persistent)
+        self.oracle.memorize(parent_path, item_model.item_text(self.selected_item_in_list(index)), persistent)
 
     def index_of_last_list(self):
         return len(self.boxes) - 1
