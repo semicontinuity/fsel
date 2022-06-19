@@ -99,6 +99,21 @@ class FsListFiles:
         self.executables = executables
 
     def __call__(self, p: List) -> List[Tuple[str, int]]:
+        """ Each item is a tuple; last element of tuple is int with item attributes (same as in st_mode) """
+        return self.list_folders(p) + self.list_files(p)
+
+    def list_folders(self, path: List) -> List[Tuple[str, int]]:
+        full_fs_path = os.path.join(self.root, *path)
+        try:
+            result = []
+            for entry in os.scandir(full_fs_path):
+                if entry.is_dir() and not entry.name.startswith('.'):
+                    result.append((entry.name, entry.stat().st_mode | ItemModel.FLAG_DIRECTORY))
+            return sorted(result, key=lambda e: e[0])
+        except PermissionError:
+            return []
+
+    def list_files(self, p: List) -> List[Tuple[str, int]]:
         if not self.select_files:
             return []
         full_fs_path = os.path.join(self.root, *p)
@@ -116,30 +131,6 @@ class FsListFiles:
         if not is_file: return False
         if self.executables: return os.access(path, os.X_OK)
         return True
-
-
-class FsModel:
-    def __init__(self, root: AnyStr, file_lister: Callable[[List], List[Tuple[str, int]]]):
-        self.root = root
-        self.file_lister = file_lister
-
-    def list_items(self, path: List) -> List[Tuple[str, int]]:
-        """ Each item is a tuple; last element of tuple is int with item attributes (same as in st_mode) """
-        return [f for f in self.list_folders(path)] + [f for f in self.file_lister(path)]
-
-    def list_folders(self, path: List) -> List[Tuple[str, int]]:
-        full_fs_path = os.path.join(self.root, *path)
-        try:
-            result = []
-            for entry in os.scandir(full_fs_path):
-                if entry.is_dir() and not entry.name.startswith('.'):
-                    result.append((entry.name, entry.stat().st_mode | ItemModel.FLAG_DIRECTORY))
-            return sorted(result, key=lambda e: e[0])
-        except PermissionError:
-            return []
-
-    def full_path(self, items_path):
-        return os.path.join(self.root, *[item_model.item_text(i) for i in items_path])
 
 
 class Oracle:
@@ -275,8 +266,8 @@ class ListBoxes:
     boxes: List[CustomListBox]
     search_string: str = ''
 
-    def __init__(self, tree_model, oracle: Oracle, initial_path):
-        self.tree_model = tree_model
+    def __init__(self, entry_lister, oracle: Oracle, initial_path):
+        self.entry_lister = entry_lister
         self.oracle = oracle
         self.boxes = self.boxes_for_path(initial_path)
         self.expand_lists()
@@ -338,7 +329,7 @@ class ListBoxes:
         return True
 
     def make_box_or_none(self, path: List) -> Optional[CustomListBox]:
-        items = self.tree_model.list_items(path)
+        items = self.entry_lister(path)
         if len(items) == 0:
             return None
         return self.make_box(path, items)

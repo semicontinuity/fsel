@@ -1,10 +1,10 @@
 import json
 import os
 import sys
-from typing import Callable, List, Tuple, Dict, AnyStr
+from typing import List, Tuple, Dict, AnyStr
 
 from fsel.sdk import FsListFiles, update_recents, run_dialog, ItemSelectionDialog, full_path, item_model, field_or_else, \
-    FsModel, ListBoxes, SelectPathDialog, Oracle
+    ListBoxes, SelectPathDialog, Oracle
 
 
 def load_settings():
@@ -46,12 +46,12 @@ class AppSelectRecent(FsApp):
 
 class AppSelectInPanes(FsApp):
 
-    def run(self, dir: str, fs_model, root_history):
+    def run(self, dir: str, fs_lister, root_history):
         fs_oracle = FsOracle(self.root, root_history)
 
         rel_path = os.path.relpath(dir, self.root)
         initial_path = rel_path.split('/') if rel_path != '.' else []
-        folder_lists = ListBoxes(fs_model, fs_oracle, initial_path)
+        folder_lists = ListBoxes(fs_lister, fs_oracle, initial_path)
         if folder_lists.is_empty():
             sys.exit(2)
 
@@ -61,7 +61,10 @@ class AppSelectInPanes(FsApp):
         )
         if items_path is None:
             sys.exit(1)
-        return fs_model.full_path(items_path)
+        return self.full_path(items_path)
+
+    def full_path(self, items_path):
+        return os.path.join(self.root, *[item_model.item_text(i) for i in items_path])
 
 
 def find_root(folder, settings: Dict) -> Tuple[str, str]:
@@ -147,8 +150,10 @@ if __name__ == "__main__":
             path = app.run([(name, False) for name in recent])
         else:
             app = AppSelectInPanes(root)
-            lister = FsListFiles(app.root, target_is_file, target_is_executable)
-            path = app.run(folder, FsModel(root, lister), root_history = field_or_else(settings_for_root, 'history', {}))
+            path = app.run(
+                folder,
+                FsListFiles(app.root, target_is_file, target_is_executable),
+                root_history=field_or_else(settings_for_root, 'history', {}))
 
         if path is None:
             sys.exit(1)
