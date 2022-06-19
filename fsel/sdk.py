@@ -1,5 +1,5 @@
 from stat import S_ISVTX, S_ISGID
-from typing import Optional, List, Dict, AnyStr, Tuple, Callable
+from typing import Optional, List, Dict, AnyStr, Tuple, Callable, Iterable, Sequence
 
 from picotui.widgets import WListBox, Dialog, ACTION_CANCEL, ACTION_OK
 
@@ -98,11 +98,11 @@ class FsListFiles:
         self.select_files = select_files
         self.executables = executables
 
-    def __call__(self, p: List) -> List[Tuple[str, int]]:
+    def __call__(self, p: Sequence[str]) -> Sequence[Tuple[str, int]]:
         """ Each item is a tuple; last element of tuple is int with item attributes (same as in st_mode) """
         return self.list_folders(p) + self.list_files(p)
 
-    def list_folders(self, path: List) -> List[Tuple[str, int]]:
+    def list_folders(self, path: Sequence[str]) -> Sequence[Tuple[str, int]]:
         full_fs_path = os.path.join(self.root, *path)
         try:
             result = []
@@ -113,7 +113,7 @@ class FsListFiles:
         except PermissionError:
             return []
 
-    def list_files(self, p: List) -> List[Tuple[str, int]]:
+    def list_files(self, p: List) -> Sequence[Tuple[str, int]]:
         if not self.select_files:
             return []
         full_fs_path = os.path.join(self.root, *p)
@@ -134,14 +134,32 @@ class FsListFiles:
 
 
 class Oracle:
-    def memorize(self, path: List[AnyStr], name: AnyStr, persistent: bool):
+    def memorize(self, path: Sequence[AnyStr], name: AnyStr, persistent: bool):
         pass
 
-    def recall_chosen_name(self, path):
+    def recall_chosen_name(self, path: Sequence[AnyStr]) -> Optional[AnyStr]:
         pass
 
-    def recall_choice(self, path, items):
+    def recall_choice(self, path: Sequence[AnyStr], items) -> int:
         pass
+
+
+class PathOracle(Oracle):
+    def __init__(self, root_history: Dict):
+        self.root_history = root_history
+        self.visit_history = {}
+
+    def memorize(self, path: Sequence[AnyStr], name: AnyStr, persistent: bool):
+        history = self.root_history if persistent else self.visit_history
+        history[self.string_path(path)] = name
+
+    def recall_chosen_name(self, path: Sequence[AnyStr]) -> Optional[AnyStr]:
+        string_path = self.string_path(path)
+        return self.visit_history.get(string_path) or self.root_history.get(string_path)
+
+    @staticmethod
+    def string_path(path: Sequence):
+        return '/'.join(path)
 
 
 class JsonModel:
@@ -181,17 +199,17 @@ class ItemModel:
     def max_item_text_length(self, items):
         return max(len(item[0]) for item in items)
 
-    def item_text(self, item: Tuple[str, int]):
+    def item_text(self, item: Tuple[str, int]) -> str:
         return item[0]
 
-    def index_of_item_text(self, text, items) -> int:
+    def index_of_item_text(self, text, items: Iterable[Tuple[str, int]]) -> Optional[int]:
         for i, item in enumerate(items):
             if text == self.item_text(item):
                 return i
 
 
 class CustomListBox(WListBox):
-    def __init__(self, w, h, items: List[Tuple[str, int]], folder=None, search_string_supplier=lambda: ''):
+    def __init__(self, w, h, items: Sequence[Tuple[str, int]], folder=None, search_string_supplier=lambda: ''):
         super().__init__(w, h, items)
         self.folder = folder
         self.search_string_supplier = search_string_supplier
@@ -232,20 +250,20 @@ class CustomListBox(WListBox):
 
         if match_from != -1:
             self.attr_reset()
-            self.attr_color(palette[Colorizer.C_IDX_REG_FG], palette[Colorizer.C_IDX_BG])
+            self.attr_color(palette[Colors.C_IDX_REG_FG], palette[Colors.C_IDX_BG])
 
             p_ctx.paint_string(l[:match_from])
 
             self.attr_reset()
-            self.attr_color(palette[Colorizer.C_IDX_MATCH_FG], palette[Colorizer.C_IDX_BG])
+            self.attr_color(palette[Colors.C_IDX_MATCH_FG], palette[Colors.C_IDX_BG])
             p_ctx.paint_string(l[match_from: match_to])
 
             self.attr_reset()
-            self.attr_color(palette[Colorizer.C_IDX_REG_FG], palette[Colorizer.C_IDX_BG])
+            self.attr_color(palette[Colors.C_IDX_REG_FG], palette[Colors.C_IDX_BG])
             p_ctx.paint_string(l[match_to:])
         else:
             self.attr_reset()
-            self.attr_color(palette[Colorizer.C_IDX_REG_FG], palette[Colorizer.C_IDX_BG])
+            self.attr_color(palette[Colors.C_IDX_REG_FG], palette[Colors.C_IDX_BG])
             p_ctx.paint_string(l)
 
         p_ctx.clear_num_pos(self.width - len(l))
@@ -266,13 +284,13 @@ class ListBoxes:
     boxes: List[CustomListBox]
     search_string: str = ''
 
-    def __init__(self, entry_lister, oracle: Oracle, initial_path):
+    def __init__(self, entry_lister: Callable[[Sequence[str]], Sequence[Tuple[str, int]]], oracle: Oracle, initial_path: List):
         self.entry_lister = entry_lister
         self.oracle = oracle
         self.boxes = self.boxes_for_path(initial_path)
         self.expand_lists()
 
-    def boxes_for_path(self, initial_path) -> List[CustomListBox]:
+    def boxes_for_path(self, initial_path: Sequence[str]) -> List[CustomListBox]:
         lists = []
         index = 0
         while True:
@@ -328,15 +346,16 @@ class ListBoxes:
         self.expand_lists()
         return True
 
-    def make_box_or_none(self, path: List) -> Optional[CustomListBox]:
+    def make_box_or_none(self, path: Sequence[str]) -> Optional[CustomListBox]:
         items = self.entry_lister(path)
         if len(items) == 0:
             return None
         return self.make_box(path, items)
 
-    def make_box(self, path, items: List[Tuple[str, int]]):
+    def make_box(self, path: Sequence[str], items: Sequence[Tuple[str, int]]):
         box = CustomListBox(item_model.max_item_text_length(items), len(items), items, path, lambda: self.search_string)
-        choice = self.oracle.recall_choice(path, items)
+        last_name = self.oracle.recall_chosen_name(path)
+        choice = item_model.index_of_item_text(last_name, items)
         box.cur_line = box.choice = 0 if choice is None else choice
         return box
 
@@ -359,7 +378,7 @@ class ListBoxes:
     def is_empty(self):
         return len(self.boxes) == 0
 
-    def path(self, index):
+    def path(self, index) -> List[str]:
         return [item_model.item_text(l.items[l.cur_line]) for l in self.boxes[: index + 1]]
 
     def items_path(self, index):
@@ -698,7 +717,7 @@ def update_recents(recent, rel_path_from_root):
         del recent[RECENT_COUNT:]
 
 
-class Colorizer:
+class Colors:
     BLUE = 17
     B_YELLOW = 227
     B_GREEN = 120
@@ -758,16 +777,16 @@ class Colorizer:
         """ category: one of C_IDX_* constants """
 
         if (attrs & ItemModel.FLAG_DIRECTORY) and (attrs & S_ISVTX):
-            palette = Colorizer.C_STICKY_FOLDER
+            palette = Colors.C_STICKY_FOLDER
         elif (attrs & ItemModel.FLAG_DIRECTORY) and (attrs & S_ISGID):
-            palette = Colorizer.C_SGID_FOLDER
+            palette = Colors.C_SGID_FOLDER
         elif attrs & ItemModel.FLAG_DIRECTORY:
-            palette = Colorizer.C_FOLDER
+            palette = Colors.C_FOLDER
         else:
-            palette = Colorizer.C_LEAF
+            palette = Colors.C_LEAF
 
         return palette[2 * int(focused_list) + int(focused_entry)]
 
 
-colors = Colorizer()
+colors = Colors()
 item_model = ItemModel()

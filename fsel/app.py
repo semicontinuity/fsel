@@ -1,10 +1,10 @@
 import json
 import os
 import sys
-from typing import List, Tuple, Dict, AnyStr
+from typing import Tuple, Dict
 
 from fsel.sdk import FsListFiles, update_recents, run_dialog, ItemSelectionDialog, full_path, item_model, field_or_else, \
-    ListBoxes, SelectPathDialog, Oracle
+    ListBoxes, SelectPathDialog, PathOracle
 
 
 def load_settings():
@@ -46,10 +46,10 @@ class AppSelectRecent(FsApp):
 
 class AppSelectInPanes(FsApp):
 
-    def run(self, dir: str, fs_lister, root_history):
-        fs_oracle = FsOracle(self.root, root_history)
+    def run(self, path: str, fs_lister, root_history):
+        fs_oracle = PathOracle(root_history)
 
-        rel_path = os.path.relpath(dir, self.root)
+        rel_path = os.path.relpath(path, self.root)
         initial_path = rel_path.split('/') if rel_path != '.' else []
         folder_lists = ListBoxes(fs_lister, fs_oracle, initial_path)
         if folder_lists.is_empty():
@@ -88,38 +88,6 @@ def find_root(folder, settings: Dict) -> Tuple[str, str]:
             folder = parent_path
 
         path = parent_path
-
-
-class FsOracle(Oracle):
-    def __init__(self, root: AnyStr, root_history: Dict):
-        self.root = root
-        self.root_history = root_history
-        self.visit_history = {}
-
-    def memorize(self, path: List[AnyStr], name: AnyStr, persistent: bool):
-        storage = self.root_history if persistent else self.visit_history
-        storage[self.string_path(path)] = name
-
-    def recall_chosen_name(self, path):
-        string_path = self.string_path(path)
-        return self.visit_history.get(string_path) or \
-               self.root_history.get(string_path)
-
-    def recall_choice(self, path, items) -> int:
-        string_path = self.string_path(path)
-        return FsOracle.recall_choice_in(self.visit_history, string_path, items) or \
-               FsOracle.recall_choice_in(self.root_history, string_path, items)
-
-    @staticmethod
-    def recall_choice_in(storage, path, items) -> int:
-        if path in storage:
-            last_name = storage[path]
-            if last_name is not None:
-                return item_model.index_of_item_text(last_name, items)
-
-    @staticmethod
-    def string_path(path):
-        return '/'.join(path)
 
 
 if __name__ == "__main__":
