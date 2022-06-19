@@ -124,13 +124,13 @@ class FsListFiles:
         self.select_files = select_files
         self.executables = executables
 
-    def __call__(self, p: List) -> List[str]:
+    def __call__(self, p: List) -> List[Tuple[str, int]]:
         full_fs_path = os.path.join(self.root, *p)
         try:
             entries: List[str] = os.listdir(full_fs_path)
             if not self.select_files:
                 return []
-            return [name for name in sorted(entries) if self.is_suitable_file(full_fs_path, name)]
+            return [(name, 0) for name in sorted(entries) if self.is_suitable_file(full_fs_path, name)]
         except PermissionError:
             return []
 
@@ -145,27 +145,29 @@ class FsListFiles:
 
 
 class FsModel:
-    def __init__(self, root: AnyStr, root_history: Dict, file_lister: Callable[[List], List[str]]):
+    def __init__(self, root: AnyStr, root_history: Dict, file_lister: Callable[[List], List[Tuple[str, int]]]):
         self.root = root
         self.file_lister = file_lister
         self.root_history = root_history
         self.visit_history = {}
 
-    def list_items(self, path: List) -> List[Tuple[str, bool]]:
-        """ Each item is a tuple; last element of tuple is False for folder and True for file """
-        return [(f, False) for f in self.list_folders(path)] + [(f, True) for f in self.file_lister(path)]
+    def list_items(self, path: List) -> List[Tuple[str, int]]:
+        """ Each item is a tuple; last element of tuple is int with item attributes (same as in st_mode) """
+        return [f for f in self.list_folders(path)] + [f for f in self.file_lister(path)]
 
-    def list_folders(self, path: List) -> List[str]:
+    def list_folders(self, path: List) -> List[Tuple[str, int]]:
         full_fs_path = os.path.join(self.root, *path)
         try:
-            entries: List[str] = os.listdir(full_fs_path)
-            return [name for name in sorted(entries)
-                     if os.path.isdir(full_fs_path + '/' + name) and not name.startswith('.')]
+            result = []
+            for entry in os.scandir(full_fs_path):
+                if entry.is_dir() and not entry.name.startswith('.'):
+                    result.append((entry.name, entry.stat().st_mode))
+            return result
         except PermissionError:
             return []
 
     def full_path(self, items_path):
-        return os.path.join(self.root, *[model.item_text(i) for i in items_path])
+        return os.path.join(self.root, *[item_model.item_text(i) for i in items_path])
 
     def memorize(self, path: List[AnyStr], name: AnyStr, persistent: bool):
         storage = self.root_history if persistent else self.visit_history
@@ -186,9 +188,10 @@ class FsModel:
         if path in storage:
             last_name = storage[path]
             if last_name is not None:
-                return model.index_of_item_text(last_name, items)
+                return item_model.index_of_item_text(last_name, items)
 
-    def string_path(self, path):
+    @staticmethod
+    def string_path(path):
         return '/'.join(path)
 
 
@@ -217,27 +220,24 @@ class JsonModel:
             return j[int(s)]
 
 
-class Model:
-    def is_leaf(self, item):
-        return item[1]
+class ItemModel:
+    def is_leaf(self, item: Tuple[str, int]):
+        return item[1] == 0
 
     def max_item_text_length(self, items):
         return max(len(item[0]) for item in items)
 
-    def item_text(self, item):
+    def item_text(self, item: Tuple[str, int]):
         return item[0]
 
     def index_of_item_text(self, text, items):
         for i, item in enumerate(items):
-            if text == item[0]:
+            if text == self.item_text(item):
                 return i
 
 
-model = Model()
-
-
 class CustomListBox(WListBox):
-    def __init__(self, w, h, items, folder=None, search_string_supplier=lambda: ''):
+    def __init__(self, w, h, items: List[Tuple[str, int]], folder=None, search_string_supplier=lambda: ''):
         super().__init__(w, h, items)
         self.folder = folder
         self.search_string_supplier = search_string_supplier
@@ -268,8 +268,8 @@ class CustomListBox(WListBox):
 
     def show_real_line(self, item, i):
         search_string = self.search_string_supplier()
-        is_leaf = model.is_leaf(item)
-        l = model.item_text(item)
+        is_leaf = item_model.is_leaf(item)
+        l = item_model.item_text(item)
         match_from = -1 if len(search_string) <= 0 else l.find(search_string)
         match_to = match_from + len(search_string)
         l = l[:self.width]
@@ -334,7 +334,7 @@ class ListBoxes:
             if index == len(lists) - 1:
                 l.focus = True
                 break
-            l.cur_line = l.choice = model.index_of_item_text(initial_path[index], l.items) or 0
+            l.cur_line = l.choice = item_model.index_of_item_text(initial_path[index], l.items) or 0
 
         return lists
 
@@ -380,21 +380,21 @@ class ListBoxes:
             return None
         return self.make_box(path, items)
 
-    def make_box(self, path, items):
-        box = CustomListBox(model.max_item_text_length(items), len(items), items, path, lambda: self.search_string)
+    def make_box(self, path, items: List[Tuple[str, int]]):
+        box = CustomListBox(item_model.max_item_text_length(items), len(items), items, path, lambda: self.search_string)
         choice = self.tree_model.recall_choice(path, items)
         box.cur_line = box.choice = 0 if choice is None else choice
         return box
 
     def memorize_choice_in_list(self, index, persistent: bool):
         parent_path = [] if index == 0 else self.path(index - 1)
-        self.tree_model.memorize(parent_path, model.item_text(self.selected_item_in_list(index)), persistent)
+        self.tree_model.memorize(parent_path, item_model.item_text(self.selected_item_in_list(index)), persistent)
 
     def index_of_last_list(self):
         return len(self.boxes) - 1
 
     def is_at_leaf(self, index):
-        return model.is_leaf(self.selected_item_in_list(index))
+        return item_model.is_leaf(self.selected_item_in_list(index))
 
     def selected_item_in_list(self, index):
         return self.boxes[index].items[self.boxes[index].cur_line]
@@ -406,7 +406,7 @@ class ListBoxes:
         return len(self.boxes) == 0
 
     def path(self, index):
-        return [model.item_text(l.items[l.cur_line]) for l in self.boxes[: index + 1]]
+        return [item_model.item_text(l.items[l.cur_line]) for l in self.boxes[: index + 1]]
 
     def items_path(self, index):
         return [l.items[l.cur_line] for l in self.boxes[: index + 1]]
@@ -629,11 +629,11 @@ class SelectPathDialog(DynamicDialog):
 
     def search_widget_and_scroll(self, search_range, skip_if_on_match, widget: CustomListBox):
         if self.folder_lists.search_string != '':
-            if skip_if_on_match and model.item_text(widget.items[widget.cur_line]).find(self.folder_lists.search_string) != -1:
+            if skip_if_on_match and item_model.item_text(widget.items[widget.cur_line]).find(self.folder_lists.search_string) != -1:
                 return
             for j in search_range:
                 i = j % len(widget.items)
-                if model.item_text(widget.items[i]).find(self.folder_lists.search_string) != -1:
+                if item_model.item_text(widget.items[i]).find(self.folder_lists.search_string) != -1:
                     widget.cur_line = widget.choice = i
                     widget.make_cur_line_visible()
                     return i
@@ -643,7 +643,7 @@ class SelectPathDialog(DynamicDialog):
         line = 0
         if self.folder_lists.search_string != '':
             for i in range(0, len(widget.items)):
-                if model.item_text(widget.items[i]).find(self.folder_lists.search_string) != -1:
+                if item_model.item_text(widget.items[i]).find(self.folder_lists.search_string) != -1:
                     count += 1
                     line = i
         return count, line
@@ -682,7 +682,7 @@ class ItemSelectionDialog(DynamicDialog):
         self.x = x
         self.y = y
         self.request_height(len(items))
-        self.add(0, 0, CustomListBox(model.max_item_text_length(items), len(items), items))
+        self.add(0, 0, CustomListBox(item_model.max_item_text_length(items), len(items), items))
 
     def handle_key(self, key):
         if key == KEY_QUIT:
@@ -796,7 +796,7 @@ class App:
 
             path = parent_path
 
-    def select_in_panes(self, file_lister: Callable[[List], List[str]]):
+    def select_in_panes(self, file_lister: Callable[[List], List[Tuple[str, int]]]):
         root_history = field_or_else(self.settings_for_root, 'history', {})
         fs_model = FsModel(self.root, root_history, file_lister)
 
@@ -829,7 +829,10 @@ class App:
         )
         if items_path is None:
             sys.exit(1)
-        return full_path(self.root, model.item_text(items_path[0]))
+        return full_path(self.root, item_model.item_text(items_path[0]))
+
+
+item_model = ItemModel()
 
 
 if __name__ == "__main__":
@@ -847,8 +850,7 @@ if __name__ == "__main__":
         if '-e' in sys.argv[1:]:
             path = app.select_recent()
         else:
-            file_lister = FsListFiles(app.root, target_is_file, target_is_executable)
-            path = app.select_in_panes(file_lister)
+            path = app.select_in_panes(FsListFiles(app.root, target_is_file, target_is_executable))
 
         if path is None:
             sys.exit(1)
