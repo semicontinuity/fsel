@@ -723,52 +723,58 @@ def update_recents(recent, rel_path_from_root):
 
 
 class Colorizer:
+    BLUE = 17
+    B_YELLOW = 227
+    B_GREEN = 120
+    GRAY = 248
+    CYAN = 31
+
     C_IDX_BG = 0
     C_IDX_REG_FG = 1
     C_IDX_MATCH_FG = 2
 
     C_STICKY_FOLDER = [
         # non focused list; non highlighted entry
-        [C_BLACK, 227, C_B_RED],
+        [C_BLACK, B_GREEN, C_B_RED],
         # non focused list; highlighted entry
-        [17, 227, C_B_RED],
+        [BLUE, B_GREEN, C_B_RED],
         # focused list; non highlighted entry
-        [C_BLACK, 227, C_B_RED],
+        [C_BLACK, B_GREEN, C_B_RED],
         # focused list; highlighted entry
-        [31, 227, C_B_RED]
+        [CYAN, B_GREEN, C_B_RED]
     ]
 
     C_SGID_FOLDER = [
         # non focused list; non highlighted entry
-        [C_BLACK, 120, C_B_RED],
+        [C_BLACK, B_YELLOW, C_B_RED],
         # non focused list; highlighted entry
-        [17, 120, C_B_RED],
+        [BLUE, B_YELLOW, C_B_RED],
         # focused list; non highlighted entry
-        [C_BLACK, 120, C_B_RED],
+        [C_BLACK, B_YELLOW, C_B_RED],
         # focused list; highlighted entry
-        [31, 46, C_B_RED]
+        [CYAN, B_YELLOW, C_B_RED]
     ]
 
     C_FOLDER = [
         # non focused list; non highlighted entry
         [C_BLACK, C_B_WHITE, C_B_RED],
         # non focused list; highlighted entry
-        [17, C_B_WHITE, C_B_RED],
+        [BLUE, C_B_WHITE, C_B_RED],
         # focused list; non highlighted entry
         [C_BLACK, C_B_WHITE, C_B_RED],
         # focused list; highlighted entry
-        [31, C_B_WHITE, C_B_RED]
+        [CYAN, C_B_WHITE, C_B_RED]
     ]
 
     C_LEAF = [
         # non focused list; non highlighted entry
-        [C_BLACK, 248, C_B_RED],
+        [C_BLACK, GRAY, C_B_RED],
         # non focused list; highlighted entry
-        [17, 248, C_B_RED],
+        [BLUE, GRAY, C_B_RED],
         # focused list; non highlighted entry
-        [C_BLACK, 248, C_B_RED],
+        [C_BLACK, GRAY, C_B_RED],
         # focused list; highlighted entry
-        [31, C_BLACK, C_B_RED]
+        [CYAN, C_BLACK, C_B_RED]
     ]
 
     @staticmethod
