@@ -1,30 +1,11 @@
-import json
 import os
 import sys
-from typing import Tuple, Dict
+from typing import Tuple, Set
 
-from fsel.sdk import FsListFiles, update_recents, run_dialog, ItemSelectionDialog, full_path, item_model, field_or_else, \
-    ListBoxes, SelectPathDialog, PathOracle
+from fsel.sdk import FsListFiles, run_dialog, ItemSelectionDialog, full_path, item_model, field_or_else, \
+    ListBoxes, SelectPathDialog, PathOracle, AllSettingsFolder
 
-
-def load_settings():
-    try:
-        with open(settings_file()) as json_file:
-            return json.load(json_file)
-    except:
-        return {}
-
-
-def save_settings(settings):
-    try:
-        with open(settings_file(), 'w') as f:
-            json.dump(settings, f, indent=2, sort_keys=True)
-    except Exception as e:
-        pass
-
-
-def settings_file():
-    return os.getenv("HOME") + "/.fsel_history"
+RECENT_COUNT = 10
 
 
 class FsApp:
@@ -67,32 +48,40 @@ class AppSelectInPanes(FsApp):
         return os.path.join(self.root, *[item_model.item_text(i) for i in items_path])
 
 
-def find_root(folder, settings: Dict) -> Tuple[str, str]:
-    path = folder if not folder.endswith('/') else folder[:len(folder) - 1]
+def find_root(folder: str, roots: Set[str]) -> Tuple[str, str]:
+    root_candidate = folder if not folder.endswith('/') else folder[:len(folder) - 1]
 
     while True:
-        if path in settings:
-            return path, folder
-        if path == os.getenv('HOME') or path == '' or path.startswith('.'):
-            return path, folder
+        if root_candidate in roots:
+            return root_candidate, folder
+        if root_candidate == os.getenv('HOME') or root_candidate == '' or root_candidate.startswith('.'):
+            return root_candidate, folder
 
-        i = path.rfind('/')
-        parent_path = path[:i]
+        i = root_candidate.rfind('/')
+        parent_path = root_candidate[:i]
 
         try:
-            contents = os.listdir(path)
-            if '.svn' in contents or '.git' in contents:
-                settings[path] = {}
-                return path
+            contents = os.listdir(root_candidate)
+            if '.svn' in contents or '.git' in contents or '.arc' in contents:
+                return root_candidate, folder
         except:  # folder may have been deleted
             folder = parent_path
 
-        path = parent_path
+        root_candidate = parent_path
+
+
+def update_recents(recent, rel_path_from_root):
+    if rel_path_from_root != '.':
+        if rel_path_from_root in recent:
+            recent.remove(rel_path_from_root)
+        recent.insert(0, rel_path_from_root)
+        del recent[RECENT_COUNT:]
 
 
 if __name__ == "__main__":
     if sys.stdin.isatty():
         path_args = [arg for arg in sys.argv[1:] if not arg.startswith('-')]
+        folder = os.getenv('PWD') if len(path_args) != 1 else path_args[0]
         target_is_file = '-f' in sys.argv[1:]
         target_is_executable = '-x' in sys.argv[1:]
         if target_is_file:
@@ -100,10 +89,9 @@ if __name__ == "__main__":
         else:
             field_for_recent = 'recent-folders'
 
-        settings = load_settings()
-        folder = os.getenv('PWD') if len(path_args) != 1 else path_args[0]
-        root, folder = find_root(folder, settings)
-        settings_for_root = field_or_else(settings, root, {})
+        all_settings = AllSettingsFolder(os.getenv("HOME") + "/.cache/fsel")
+        root, folder = find_root(folder, all_settings.roots)
+        settings_for_root = all_settings.load_settings(root)
         recent = field_or_else(settings_for_root, field_for_recent, [])
 
         if '-e' in sys.argv[1:]:
@@ -121,14 +109,16 @@ if __name__ == "__main__":
             path = app.run(
                 folder,
                 FsListFiles(app.root, target_is_file, target_is_executable),
-                root_history=field_or_else(settings_for_root, 'history', {}))
+                root_history=field_or_else(settings_for_root, 'history', {})
+            )
 
         if path is None:
             sys.exit(1)
 
         rel_path_from_root = os.path.relpath(path, start=app.root)
         update_recents(recent, rel_path_from_root)
-        save_settings(settings)
+        all_settings.save(settings_for_root, root)
+
         ret_rel_path = '-r' in sys.argv[1:]
         ret_rel_path_from_root = '-R' in sys.argv[1:]
 

@@ -1,5 +1,6 @@
+import json
 from stat import S_ISVTX, S_ISGID
-from typing import Optional, List, Dict, AnyStr, Tuple, Callable, Iterable, Sequence
+from typing import Optional, List, Dict, AnyStr, Tuple, Callable, Iterable, Sequence, Set
 
 from picotui.widgets import WListBox, Dialog, ACTION_CANCEL, ACTION_OK
 
@@ -26,8 +27,6 @@ KEY_CTRL_LEFT = b'\x1b[1;5D'
 
 KEY_CTRL_HOME = b'\x1b[1;5H'
 KEY_CTRL_END = b'\x1b[1;5F'
-
-RECENT_COUNT = 10
 
 
 class PaintContext:
@@ -102,7 +101,7 @@ class FsListFiles:
         """ Each item is a tuple; last element of tuple is int with item attributes (same as in st_mode) """
         return self.list_folders(p) + self.list_files(p)
 
-    def list_folders(self, path: Sequence[str]) -> Sequence[Tuple[str, int]]:
+    def list_folders(self, path: Sequence[str]) -> List[Tuple[str, int]]:
         full_fs_path = os.path.join(self.root, *path)
         try:
             result = []
@@ -113,7 +112,7 @@ class FsListFiles:
         except PermissionError:
             return []
 
-    def list_files(self, p: List) -> Sequence[Tuple[str, int]]:
+    def list_files(self, p: Sequence[str]) -> List[Tuple[str, int]]:
         if not self.select_files:
             return []
         full_fs_path = os.path.join(self.root, *p)
@@ -709,12 +708,32 @@ def field_or_else(d: Dict, name, default):
     return result
 
 
-def update_recents(recent, rel_path_from_root):
-    if rel_path_from_root != '.':
-        if rel_path_from_root in recent:
-            recent.remove(rel_path_from_root)
-        recent.insert(0, rel_path_from_root)
-        del recent[RECENT_COUNT:]
+class AllSettingsFolder:
+    roots: Set[str] = set()
+
+    def __init__(self, all_settings_folder: str):
+        os.makedirs(all_settings_folder, exist_ok=True)
+        self.all_settings_folder = all_settings_folder
+        for entry in os.scandir(all_settings_folder):
+            if entry.is_file():
+                self.roots.add(entry.name.replace('\\', '/'))
+
+    def load_settings(self, root: AnyStr):
+        try:
+            with open(self.settings_file(root)) as json_file:
+                return json.load(json_file)
+        except:
+            return {}
+
+    def save(self, settings, root: AnyStr):
+        try:
+            with open(self.settings_file(root), 'w') as f:
+                json.dump(settings, f, indent=2, sort_keys=True)
+        except:
+            pass
+
+    def settings_file(self, root):
+        return self.all_settings_folder + '/' + root.replace('/', '\\')
 
 
 class Colors:
