@@ -569,7 +569,7 @@ class SelectPathDialog(DynamicDialog):
             # self.search_widget_all(widget)
         elif type(key) is bytes and not key.startswith(b'\x1b'):
             self.folder_lists.search_string += key.decode("utf-8")
-            count, idx, line = self.search_widgets_all()
+            count, idx, line, match_indices_by_widget = self.search_widgets_all()
             if count == 1:
                 self.focus_idx = idx
                 box = self.folder_lists.boxes[idx]
@@ -578,6 +578,11 @@ class SelectPathDialog(DynamicDialog):
                 self.change_focus(box)
                 self.make_focused_column_visible(True)
                 self.folder_lists.search_string = ''
+            elif self.focus_idx in match_indices_by_widget:
+                # better to binary-search for nearest match?
+                box = self.folder_lists.boxes[self.focus_idx]
+                box.cur_line = match_indices_by_widget[self.focus_idx][0]
+                box.make_cur_line_visible()
             return True
         else:
             return False
@@ -610,27 +615,31 @@ class SelectPathDialog(DynamicDialog):
                     widget.make_cur_line_visible()
                     return i
 
-    def search_widget_get_match(self, widget: WListBox) -> Tuple[int, int]:
-        count = 0
-        line = 0
+    def search_widget_get_match(self, widget: WListBox) -> Tuple[int, int, List[int]]:
+        match_count = 0
+        last_match_line = 0
+        match_indices = []
         if self.folder_lists.search_string != '':
             for i in range(0, len(widget.items)):
                 if item_model.item_text(widget.items[i]).find(self.folder_lists.search_string) != -1:
-                    count += 1
-                    line = i
-        return count, line
+                    match_count += 1
+                    last_match_line = i
+                    match_indices.append(i)
+        return match_count, last_match_line, match_indices
 
-    def search_widgets_all(self) -> Tuple[int, int, int]:
+    def search_widgets_all(self) -> Tuple[int, int, int, Dict[int, List[int]]]:
         count = 0
         last_line = 0
         last_idx = 0
+        match_indices_by_widget = {}
         for idx in range(0, len(self.folder_lists.boxes)):
-            cnt, line = self.search_widget_get_match(self.folder_lists.boxes[idx])
-            if cnt > 0:
-                count += cnt
+            matches_in_widget, last_match_line, match_indices = self.search_widget_get_match(self.folder_lists.boxes[idx])
+            if matches_in_widget > 0:
+                count += matches_in_widget
                 last_idx = idx
-                last_line = line
-        return count, last_idx, last_line
+                last_line = last_match_line
+                match_indices_by_widget[idx] = match_indices
+        return count, last_idx, last_line, match_indices_by_widget
 
     def search_widgets_right(self) -> Optional[int]:
         return self.search_widgets(range(self.focus_idx + 1, len(self.folder_lists.boxes)))
