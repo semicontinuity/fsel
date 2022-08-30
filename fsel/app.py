@@ -16,7 +16,7 @@ class FsApp:
 class AppSelectRecent(FsApp):
 
     def run(self, recent_items):
-        items_path = run_dialog(
+        exit_code, items_path = run_dialog(
             lambda screen_height, screen_width, cursor_y, cursor_x:
             ItemSelectionDialog(screen_height, screen_width, 0, 0, cursor_y, recent_items)
         )
@@ -36,7 +36,7 @@ class AppSelectInPanes(FsApp):
         if folder_lists.is_empty():
             sys.exit(2)
 
-        items_path = run_dialog(
+        exit_code, items_path = run_dialog(
             lambda screen_height, screen_width, cursor_y, cursor_x:
             SelectPathDialog(folder_lists, screen_width, screen_height, width=1000, height=0, x=0, y=cursor_y)
         )

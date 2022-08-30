@@ -4,6 +4,8 @@ from typing import Optional, List, Dict, AnyStr, Tuple, Callable, Iterable, Sequ
 
 from picotui.widgets import WListBox, Dialog, ACTION_CANCEL, ACTION_OK
 
+from .exit_codes import EXIT_CODE_ENTER, EXIT_CODE_ESCAPE
+from .exit_codes_mapping import KEYS_TO_EXIT_CODES
 from .picotui_patch import patch_picotui
 
 patch_picotui()
@@ -419,7 +421,12 @@ class DynamicDialog(Dialog):
         p_ctx.clear_box(self.x, self.y, self.w, self.h)
 
 
-class SelectPathDialog(DynamicDialog):
+class AbstractSelectionDialog(DynamicDialog):
+    def items_path(self) -> List:
+        pass
+
+
+class SelectPathDialog(AbstractSelectionDialog):
     def __init__(self, folder_lists: ListBoxes, screen_width, screen_height, width, height, x, y):
         super().__init__(screen_height, x, y, width, height)
         self.screen_width = screen_width
@@ -464,6 +471,9 @@ class SelectPathDialog(DynamicDialog):
         pass
 
     def handle_key(self, key):
+        if key in KEYS_TO_EXIT_CODES:
+            return key
+
         if key == KEY_QUIT:
             return KEY_QUIT
         if key == KEY_ESC and self.finish_on_esc:
@@ -657,7 +667,7 @@ class SelectPathDialog(DynamicDialog):
         return None
 
 
-class ItemSelectionDialog(DynamicDialog):
+class ItemSelectionDialog(AbstractSelectionDialog):
     def __init__(self, screen_height, width, height, x, y, items):
         super().__init__(screen_height, 0, 0, width, height)
         self.x = x
@@ -679,8 +689,8 @@ class ItemSelectionDialog(DynamicDialog):
         return [self.focus_w.items[self.focus_w.cur_line]]
 
 
-def run_dialog(dialog_supplier):
-    v = None
+def run_dialog(dialog_supplier: Callable[[int, int, int, int], AbstractSelectionDialog]):
+    dialog = None
     try:
         Screen.init_tty()
         Screen.cursor(False)
@@ -690,16 +700,20 @@ def run_dialog(dialog_supplier):
         p_ctx.max_x = screen_width
         p_ctx.max_y = screen_height
 
-        v = dialog_supplier(screen_height, screen_width, cursor_y, cursor_x)
-        if v.loop() == ACTION_OK:
-            return v.items_path()
+        dialog = dialog_supplier(screen_height, screen_width, cursor_y, cursor_x)
+        res = dialog.loop()
+        exit_code = KEYS_TO_EXIT_CODES.get(res)
+        if res == ACTION_OK:
+            return EXIT_CODE_ENTER, dialog.items_path()
+        elif res == ACTION_CANCEL:
+            return EXIT_CODE_ESCAPE, None
         else:
-            return None
+            return exit_code, dialog.items_path()
     finally:
         Screen.attr_reset()
-        if v is not None:
-            v.clear()
-            Screen.goto(0, v.y)
+        if dialog is not None:
+            dialog.clear()
+            Screen.goto(0, dialog.y)
 
         Screen.cursor(True)
         Screen.deinit_tty()

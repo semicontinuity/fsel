@@ -1,0 +1,36 @@
+#!/usr/bin/env python3
+# Exit codes correspond to key codes + modifiers: 20*8 basic codes + extra
+EXIT_CODE_ENTER = 0
+EXIT_CODE_F1 = 1
+EXIT_CODE_F2 = 2
+EXIT_CODE_F3 = 3
+EXIT_CODE_F4 = 4
+EXIT_CODE_F5 = 5
+EXIT_CODE_F6 = 6
+EXIT_CODE_F7 = 7
+EXIT_CODE_F8 = 8
+EXIT_CODE_F9 = 9
+EXIT_CODE_F10 = 10
+EXIT_CODE_F11 = 11
+EXIT_CODE_F12 = 12
+EXIT_CODE_INSERT = 13
+EXIT_CODE_DELETE = 14
+EXIT_CODE_HOME = 15
+EXIT_CODE_END = 16
+EXIT_CODE_PAGE_UP = 17
+EXIT_CODE_PAGE_DOWN = 18
+EXIT_CODE_BACKSPACE = 19
+
+EXIT_CODE_SHIFT = 20
+EXIT_CODE_CTRL = 40
+EXIT_CODE_ALT = 80
+
+EXIT_CODE_MAX_REGULAR = EXIT_CODE_BACKSPACE + EXIT_CODE_SHIFT + EXIT_CODE_CTRL + EXIT_CODE_ALT
+
+EXIT_CODE_CTRL_SPACE = 194
+
+EXIT_CODE_ESCAPE = 199
+
+
+def exit_code_key_has_modifier(exit_code: int, modifier_code: int):
+    return (exit_code // modifier_code) & 1 == 1
