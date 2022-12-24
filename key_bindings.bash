@@ -10,9 +10,17 @@ __fsel_edit__() {
   file=$(python3 -m fsel.app -r -f "$@") && printf "${EDITOR:-nano} $file"
 }
 
+#__fsel_cd__() {
+#  local dir
+#  dir=$(python3 -m fsel.app "$@") && printf 'cd %q' "$dir"
+#}
 __fsel_cd__() {
   local dir
-  dir=$(python3 -m fsel.app "$@") && printf 'cd %q' "$dir"
+  local res
+  dir=$(python3 -m fsel.app "$@")
+  res=$?
+  [[ $res == 14 ]] && printf 'rm -rf %q' "$dir"
+  [[ $res == 0 ]] && printf 'cd %q' "$dir"
 }
 
 __fsel_run__() {

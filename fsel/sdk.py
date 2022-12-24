@@ -471,13 +471,14 @@ class SelectPathDialog(AbstractSelectionDialog):
         pass
 
     def handle_key(self, key):
-        if key in KEYS_TO_EXIT_CODES:
-            return key
-
         if key == KEY_QUIT:
             return KEY_QUIT
         if key == KEY_ESC and self.finish_on_esc:
             return ACTION_CANCEL
+
+        if key in KEYS_TO_EXIT_CODES:
+            return key
+
         if key == KEY_RIGHT:
             self.folder_lists.search_string = ''
             if self.focus_idx == len(self.folder_lists.boxes) - 1:

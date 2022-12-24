@@ -22,7 +22,7 @@ class AppSelectRecent(FsApp):
         )
         if items_path is None:
             sys.exit(1)
-        return full_path(self.root, item_model.item_text(items_path[0]))
+        return exit_code, full_path(self.root, item_model.item_text(items_path[0]))
 
 
 class AppSelectInPanes(FsApp):
@@ -42,7 +42,7 @@ class AppSelectInPanes(FsApp):
         )
         if items_path is None:
             sys.exit(1)
-        return self.full_path(items_path)
+        return exit_code, self.full_path(items_path)
 
     def full_path(self, items_path):
         return os.path.join(self.root, *[item_model.item_text(i) for i in items_path])
@@ -103,10 +103,10 @@ if __name__ == "__main__":
                 recent[0], recent[1] = recent[1], recent[0]
 
             app = AppSelectRecent(root)
-            path = app.run([(name, False) for name in recent])
+            exit_code, path = app.run([(name, False) for name in recent])
         else:
             app = AppSelectInPanes(root)
-            path = app.run(
+            exit_code, path = app.run(
                 folder,
                 FsListFiles(app.root, target_is_file, target_is_executable),
                 root_history=field_or_else(settings_for_root, 'history', {})
@@ -130,3 +130,4 @@ if __name__ == "__main__":
             res = path
 
         print(res)
+        sys.exit(exit_code)
