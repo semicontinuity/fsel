@@ -225,12 +225,14 @@ class CustomListBox(WListBox):
         undershoot = self.top_line - self.cur_line
         if undershoot > 0:
             self.top_line -= undershoot
+        self.top_line = max(self.top_line, 0)   # becomes negative when search-filtering?
 
     def redraw(self):
         search_string = self.search_string_supplier()
         if len(search_string) <= 0:
             return super().redraw()
 
+        # Better idea: replace self.content with filtered content on typing (+ have shadow copy of data)
         content = [item for item in self.content if item_model.item_text(item).find(search_string) >= 0]
         total_lines = len(content)
         self.cur_line = min(total_lines - 1, self.cur_line)
@@ -240,7 +242,7 @@ class CustomListBox(WListBox):
         r = self.y
         for c in range(self.height):
             self.goto(self.x, r)
-            if i == total_lines:
+            if i >= total_lines:
                 self.show_line("", -1)
             else:
                 self.show_line(content[i], i)
