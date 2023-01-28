@@ -226,6 +226,28 @@ class CustomListBox(WListBox):
         if undershoot > 0:
             self.top_line -= undershoot
 
+    def redraw(self):
+        search_string = self.search_string_supplier()
+        if len(search_string) <= 0:
+            return super().redraw()
+
+        content = [item for item in self.content if item_model.item_text(item).find(search_string) >= 0]
+        total_lines = len(content)
+        self.cur_line = min(total_lines - 1, self.cur_line)
+
+        self.cursor(False)
+        i = self.top_line
+        r = self.y
+        for c in range(self.height):
+            self.goto(self.x, r)
+            if i == total_lines:
+                self.show_line("", -1)
+            else:
+                self.show_line(content[i], i)
+                i += 1
+            r += 1
+        self.set_cursor()
+
     @staticmethod
     def goto(x, y):
         p_ctx.goto(x, y)
