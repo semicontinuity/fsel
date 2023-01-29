@@ -214,6 +214,7 @@ class CustomListBox(WListBox):
         super().__init__(w, h, items)
         self.folder = folder
         self.search_string_supplier = search_string_supplier
+        self.all_items = items
 
     def __repr__(self):
         return f'{self.folder}: {self.items[self.cur_line]}'
@@ -226,29 +227,6 @@ class CustomListBox(WListBox):
         if undershoot > 0:
             self.top_line -= undershoot
         self.top_line = max(self.top_line, 0)   # becomes negative when search-filtering?
-
-    def redraw(self):
-        search_string = self.search_string_supplier()
-        if len(search_string) <= 0:
-            return super().redraw()
-
-        # Better idea: replace self.content with filtered content on typing (+ have shadow copy of data)
-        content = [item for item in self.content if item_model.item_text(item).find(search_string) >= 0]
-        total_lines = len(content)
-        self.cur_line = min(total_lines - 1, self.cur_line)
-
-        self.cursor(False)
-        i = self.top_line
-        r = self.y
-        for c in range(self.height):
-            self.goto(self.x, r)
-            if i >= total_lines:
-                self.show_line("", -1)
-            else:
-                self.show_line(content[i], i)
-                i += 1
-            r += 1
-        self.set_cursor()
 
     @staticmethod
     def goto(x, y):
@@ -304,6 +282,20 @@ class CustomListBox(WListBox):
     def attr_color(fg, bg=-1):
         Screen.wr("\x1b[38;5;%d;48;5;%dm" % (fg, bg))
 
+    def search(self, s: str):
+        content = []
+        cur_item = self.items[self.cur_line]
+        new_current_line = 0
+
+        for i, item in enumerate(self.all_items):
+            if item == cur_item or item_model.item_text(item).find(s) >= 0:
+                if item == cur_item:
+                    new_current_line = len(content)
+                content.append(item)
+
+        self.set_items(content)
+        self.cur_line = new_current_line
+
 
 class ListBoxes:
     boxes: List[CustomListBox]
@@ -314,6 +306,11 @@ class ListBoxes:
         self.oracle = oracle
         self.boxes = self.boxes_for_path(initial_path)
         self.expand_lists()
+
+    def search(self, s: str = ''):
+        self.search_string = s
+        for child in self.boxes:
+            child.search(s)
 
     def boxes_for_path(self, initial_path: Sequence[str]) -> List[CustomListBox]:
         lists = []
@@ -464,7 +461,7 @@ class SelectPathDialog(AbstractSelectionDialog):
         child_x = 0
 
         for i, child in enumerate(self.folder_lists.boxes):
-            child.h = child.height = min(child.height, self.h)
+            child.h = child.height = min(len(child.items), self.h)
             self.add(child_x, 0, child)
             child_x += child.width + 1
             if child.focus:
@@ -504,10 +501,10 @@ class SelectPathDialog(AbstractSelectionDialog):
             return key
 
         if key == KEY_RIGHT:
-            self.folder_lists.search_string = ''
+            self.folder_lists.search()
+            self.layout()
             if self.focus_idx == len(self.folder_lists.boxes) - 1:
                 if self.folder_lists.try_to_go_in(self.focus_idx):
-                    self.layout()
                     self.redraw()
                     self.move_focus(1)
             else:
@@ -517,21 +514,24 @@ class SelectPathDialog(AbstractSelectionDialog):
             self.folder_lists.boxes[self.focus_idx].make_cur_line_visible()
             self.redraw()
         elif key == KEY_LEFT:
-            self.folder_lists.search_string = ''
+            self.folder_lists.search()
+            self.layout()
             if self.focus_idx != 0:
                 self.move_focus(-1)
             self.make_focused_column_visible(False)
             self.folder_lists.boxes[self.focus_idx].make_cur_line_visible()
             self.redraw()
         elif key == KEY_HOME:
-            self.folder_lists.search_string = ''
+            self.folder_lists.search()
+            self.layout()
             self.focus_idx = 0
             self.change_focus(self.folder_lists.boxes[self.focus_idx])
             self.make_focused_column_visible(False)
             self.folder_lists.boxes[self.focus_idx].make_cur_line_visible()
             self.redraw()
         elif key == KEY_END:
-            self.folder_lists.search_string = ''
+            self.folder_lists.search()
+            self.layout()
             self.focus_idx = self.folder_lists.index_of_last_list()
             self.change_focus(self.folder_lists.boxes[self.focus_idx])
             self.make_focused_column_visible(True)
@@ -600,10 +600,10 @@ class SelectPathDialog(AbstractSelectionDialog):
                 self.make_focused_column_visible(True)
             return True
         elif key == KEY_BACKSPACE:
-            self.folder_lists.search_string = self.folder_lists.search_string[:-1]
+            self.folder_lists.search(self.folder_lists.search_string[:-1])
             # self.search_widget_all(widget)
         elif type(key) is bytes and not key.startswith(b'\x1b'):
-            self.folder_lists.search_string += key.decode("utf-8")
+            self.folder_lists.search(self.folder_lists.search_string + key.decode("utf-8"))
             count, idx, line, match_indices_by_widget = self.search_widgets_all()
             if count == 1:
                 self.focus_idx = idx
@@ -612,7 +612,7 @@ class SelectPathDialog(AbstractSelectionDialog):
                 box.make_cur_line_visible()
                 self.change_focus(box)
                 self.make_focused_column_visible(True)
-                self.folder_lists.search_string = ''
+                self.folder_lists.search()
             elif self.focus_idx in match_indices_by_widget:
                 # better to binary-search for nearest match?
                 box = self.folder_lists.boxes[self.focus_idx]
