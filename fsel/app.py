@@ -84,6 +84,9 @@ if __name__ == "__main__":
         folder = os.getenv('PWD') if len(path_args) != 1 else path_args[0]
         target_is_file = '-f' in sys.argv[1:]
         target_is_executable = '-x' in sys.argv[1:]
+        show_dot_files = '-a' in sys.argv[1:]
+        show_recent = '-e' in sys.argv[1:]
+
         if target_is_file:
             field_for_recent = 'recent-executables' if target_is_executable else 'recent-files'
         else:
@@ -94,7 +97,7 @@ if __name__ == "__main__":
         settings_for_root = all_settings.load_settings(root)
         recent = field_or_else(settings_for_root, field_for_recent, [])
 
-        if '-e' in sys.argv[1:]:
+        if show_recent:
             if len(recent) == 0:
                 sys.exit(2)
 
@@ -108,7 +111,7 @@ if __name__ == "__main__":
             app = AppSelectInPanes(root)
             exit_code, path = app.run(
                 folder,
-                FsListFiles(app.root, target_is_file, target_is_executable),
+                FsListFiles(app.root, target_is_file, target_is_executable, show_dot_files),
                 root_history=field_or_else(settings_for_root, 'history', {})
             )
 

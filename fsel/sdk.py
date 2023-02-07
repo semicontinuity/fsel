@@ -94,10 +94,11 @@ p_ctx = PaintContext()
 
 
 class FsListFiles:
-    def __init__(self, root: AnyStr, select_files: bool, executables: bool):
+    def __init__(self, root: AnyStr, select_files: bool, executables: bool, dot_files):
         self.root = root
         self.select_files = select_files
         self.executables = executables
+        self.dot_files = dot_files
 
     def __call__(self, p: Sequence[str]) -> Sequence[Tuple[str, int]]:
         """ Each item is a tuple; last element of tuple is int with item attributes (same as in st_mode) """
@@ -125,7 +126,7 @@ class FsListFiles:
             return []
 
     def is_suitable_file(self, folder, name):
-        return not name.startswith('.') and self.is_suitable_file_path(folder + '/' + name)
+        return (self.dot_files or not name.startswith('.')) and self.is_suitable_file_path(folder + '/' + name)
 
     def is_suitable_file_path(self, path):
         is_file = os.path.isfile(path)

@@ -10,10 +10,6 @@ __fsel_edit__() {
   file=$(python3 -m fsel.app -r -f "$@") && printf "${EDITOR:-nano} $file"
 }
 
-#__fsel_cd__() {
-#  local dir
-#  dir=$(python3 -m fsel.app "$@") && printf 'cd %q' "$dir"
-#}
 __fsel_cd__() {
   local dir
   local res
@@ -29,7 +25,8 @@ __fsel_run__() {
 }
 
 __fsel_widget__() {
-  local selected=$(python3 -m fsel.app "$@")
+  local selected
+  selected=$(python3 -m fsel.app "$@")
   READLINE_LINE="${READLINE_LINE:0:$READLINE_POINT}$selected${READLINE_LINE:$READLINE_POINT}"
   READLINE_POINT=$(( READLINE_POINT + ${#selected} ))
 }
@@ -40,6 +37,9 @@ bind '"\eq": "$(__fsel_cat__)\e\C-e\C-m"'
 
 # Alt+Shift+Q: edit selected file
 bind '"\eQ": "$(__fsel_edit__)\e\C-e\C-m"'
+
+# Ctrl+Alt+Shift+Q: edit selected file (including dot-files)
+bind '"\e\C-Q": "$(__fsel_edit__ -a)\e\C-e\C-m"'
 
 
 # CTRL-ALT-Space: run selected executable
