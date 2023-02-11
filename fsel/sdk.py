@@ -1,5 +1,5 @@
 import json
-from stat import S_ISVTX, S_ISGID
+from stat import S_ISVTX, S_ISGID, S_ISUID
 from typing import Optional, List, Dict, AnyStr, Tuple, Callable, Iterable, Sequence, Set
 
 from picotui.widgets import WListBox, Dialog, ACTION_CANCEL, ACTION_OK
@@ -789,6 +789,7 @@ class Colors:
     BLUE = 17
     B_YELLOW = 227
     B_GREEN = 120
+    B_RED = 196
     GRAY = 248
     CYAN = 31
 
@@ -816,6 +817,17 @@ class Colors:
         [C_BLACK, B_YELLOW, C_B_RED],
         # focused list; highlighted entry
         [CYAN, B_YELLOW, C_B_RED]
+    ]
+
+    C_SUID_FOLDER = [
+        # non focused list; non highlighted entry
+        [C_BLACK, B_RED, C_B_RED],
+        # non focused list; highlighted entry
+        [BLUE, B_RED, C_B_RED],
+        # focused list; non highlighted entry
+        [C_BLACK, B_RED, C_B_RED],
+        # focused list; highlighted entry
+        [CYAN, B_RED, C_B_RED]
     ]
 
     C_FOLDER = [
@@ -848,6 +860,8 @@ class Colors:
             palette = Colors.C_STICKY_FOLDER
         elif (attrs & ItemModel.FLAG_DIRECTORY) and (attrs & S_ISGID):
             palette = Colors.C_SGID_FOLDER
+        elif (attrs & ItemModel.FLAG_DIRECTORY) and (attrs & S_ISUID):
+            palette = Colors.C_SUID_FOLDER
         elif attrs & ItemModel.FLAG_DIRECTORY:
             palette = Colors.C_FOLDER
         else:

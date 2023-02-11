@@ -35,6 +35,9 @@ __fsel_widget__() {
 # Alt+Q: view selected file
 bind '"\eq": "$(__fsel_cat__)\e\C-e\C-m"'
 
+# Ctrl+Q: view selected file (including dot-files)
+bind '"\C-Q": "$(__fsel_cat__ -a)\e\C-e\C-m"'
+
 # Alt+Shift+Q: edit selected file
 bind '"\eQ": "$(__fsel_edit__)\e\C-e\C-m"'
 
