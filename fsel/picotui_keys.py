@@ -1,6 +1,9 @@
 KEY_INSERT = b'\x1b[2~'
 KEY_ALT_INSERT = b'\x1b[2;3~'
+
 KEY_ALT_ENTER = b'\x1b\x0d'
+# no Ctrl+Enter, Shift+Enter, Ctrl+Alt+Enter, Alt+Shift+Enter:
+# but have Ctrl+Space, Ctrl+Alt+Space, Alt+Shift+Space
 
 KEY_ALT_RIGHT = b'\x1b[1;3C'
 KEY_ALT_LEFT = b'\x1b[1;3D'
@@ -73,3 +76,5 @@ KEY_ALT_SHIFT_8 = b'\x1b*'
 KEY_ALT_SHIFT_9 = b'\x1b('
 
 KEY_CTRL_SPACE = b'\x00'
+KEY_CTRL_ALT_SPACE = b'\x1b\x00'
+KEY_ALT_SHIFT_SPACE = b'\x1b '
