@@ -6,6 +6,7 @@ from picotui.widgets import WListBox, Dialog, ACTION_CANCEL, ACTION_OK
 
 from .exit_codes import EXIT_CODE_ENTER, EXIT_CODE_ESCAPE
 from .exit_codes_mapping import KEYS_TO_EXIT_CODES
+from .logging import debug
 from .picotui_patch import patch_picotui
 
 patch_picotui()
@@ -303,6 +304,7 @@ class ListBoxes:
     search_string: str = ''
 
     def __init__(self, entry_lister: Callable[[Sequence[str]], Sequence[Tuple[str, int]]], oracle: Oracle, initial_path: List):
+        debug('ListBoxes', initial_path=initial_path)
         self.entry_lister = entry_lister
         self.oracle = oracle
         self.boxes = self.boxes_for_path(initial_path)
@@ -336,12 +338,15 @@ class ListBoxes:
     def expand_lists(self):
         index = len(self.boxes) - 1
         while True:
+            debug("expand_lists", index=index)
             if self.is_at_leaf(index):
+                debug("expand_lists", index=index, is_at_leaf=True)
                 break
             path = self.path(index)
             name = self.oracle.recall_chosen_name(path)
             index += 1
             a_list = self.make_box_or_none(path)
+            debug("expand_lists", index=index, a_list_not_none=a_list is not None)
             if a_list is None or a_list.cur_line is None:
                 break
             self.boxes.append(a_list)
@@ -349,33 +354,44 @@ class ListBoxes:
                 continue
             if name is None:
                 break
+        debug("expand_lists", boxes_heights=[b.height for b in self.boxes])
 
     def activate_sibling(self, index):
+        debug("activate_sibling", index=index)
         self.boxes = self.boxes[: index + 1]
         self.expand_lists()
         self.memorize_choice_in_list(index, False)
 
     def try_to_go_in(self, index):
-        if index != len(self.boxes) - 1 or self.is_at_leaf(index):
+        debug("try_to_go_in", index=index)
+        is_at_leaf = self.is_at_leaf(index)
+        debug("try_to_go_in", is_at_leaf=is_at_leaf)
+        not_last = index != len(self.boxes) - 1
+        if not_last or is_at_leaf:
             return
 
         self.memorize_choice_in_list(index, False)
 
         new_box = self.make_box_or_none(self.path(index))
         if new_box is None:
+            debug("try_to_go_in", new_box=None)
             return
 
+        debug("try_to_go_in", new_box_height=new_box.height)
         self.boxes.append(new_box)
         self.expand_lists()
         return True
 
     def make_box_or_none(self, path: Sequence[str]) -> Optional[CustomListBox]:
+        debug("make_box_or_none", path=path)
         items = self.entry_lister(path)
         if len(items) == 0:
+            debug("make_box_or_none", items_length=0)
             return None
         return self.make_box(path, items)
 
     def make_box(self, path: Sequence[str], items: Sequence[Tuple[str, int]]):
+        debug("make_box", items_length=len(items), path=path)
         box = CustomListBox(item_model.max_item_text_length(items), len(items), items, path, lambda: self.search_string)
         last_name = self.oracle.recall_chosen_name(path)
         choice = item_model.index_of_item_text(last_name, items)
@@ -435,6 +451,7 @@ class DynamicDialog(Dialog):
                 self.focus_w.focus = True
 
         self.clear()
+        debug("DynamicDialog.redraw", childs_length=len(self.childs))
         for w in self.childs:
             w.redraw()
 
@@ -457,6 +474,7 @@ class SelectPathDialog(AbstractSelectionDialog):
         self.make_focused_column_visible(True)
 
     def layout(self):
+        debug("SelectPathDialog.layout", boxes_length=len(self.folder_lists.boxes))
         self.request_height(self.folder_lists.max_child_height())
         self.childs = []
         child_x = 0
@@ -468,6 +486,7 @@ class SelectPathDialog(AbstractSelectionDialog):
             if child.focus:
                 self.focus_w = child
                 self.focus_idx = i
+        debug("SelectPathDialog.layout", childs_length=len(self.childs))
 
     def make_focused_column_visible(self, align_to_right: bool):
         if (self.moved_to_make_tail_visible() if align_to_right else 0) + self.moved_to_make_head_visible() > 0:
@@ -502,10 +521,13 @@ class SelectPathDialog(AbstractSelectionDialog):
             return key
 
         if key == KEY_RIGHT:
+            debug("handle_key", key="KEY_RIGHT", focus_idx=self.focus_idx)
             self.folder_lists.search()
             self.layout()
             if self.focus_idx == len(self.folder_lists.boxes) - 1:
                 if self.folder_lists.try_to_go_in(self.focus_idx):
+                    debug("handle_key", key="KEY_RIGHT", ok=True, boxes_length=len(self.folder_lists.boxes))
+                    self.layout()
                     self.redraw()
                     self.move_focus(1)
             else:
