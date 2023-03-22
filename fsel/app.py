@@ -2,6 +2,7 @@ import os
 import sys
 from typing import Tuple, Set
 
+from fsel.logging import debug
 from fsel.sdk import FsListFiles, run_dialog, ItemSelectionDialog, full_path, item_model, field_or_else, \
     ListBoxes, SelectPathDialog, PathOracle, AllSettingsFolder
 
@@ -31,6 +32,7 @@ class AppSelectInPanes(FsApp):
         fs_oracle = PathOracle(root_history)
 
         rel_path = os.path.relpath(path, self.root)
+        debug("AppSelectInPanes.run", path=path, rel_path=rel_path)
         initial_path = rel_path.split('/') if rel_path != '.' else []
         folder_lists = ListBoxes(fs_lister, fs_oracle, initial_path)
         if folder_lists.is_empty():
@@ -78,59 +80,56 @@ def update_recents(recent, rel_path_from_root):
         del recent[RECENT_COUNT:]
 
 
+def main():
+    path_args = [arg for arg in sys.argv[1:] if not arg.startswith('-')]
+    folder = os.getenv('PWD') if len(path_args) != 1 else os.path.realpath(path_args[0])
+    debug("main", folder=folder)
+    target_is_file = '-f' in sys.argv[1:]
+    target_is_executable = '-x' in sys.argv[1:]
+    show_dot_files = '-a' in sys.argv[1:]
+    show_recent = '-e' in sys.argv[1:]
+    if target_is_file:
+        field_for_recent = 'recent-executables' if target_is_executable else 'recent-files'
+    else:
+        field_for_recent = 'recent-folders'
+    all_settings = AllSettingsFolder(os.getenv("HOME") + "/.cache/fsel")
+    root, folder = find_root(folder, all_settings.roots)
+    settings_for_root = all_settings.load_settings(root)
+    recent = field_or_else(settings_for_root, field_for_recent, [])
+    if show_recent:
+        if len(recent) == 0:
+            sys.exit(2)
+
+        # makes little sense to cd to the current directory...
+        if recent[0] == os.path.relpath(os.environ["PWD"], root) and len(recent) > 1:  # PWD for logical path
+            recent[0], recent[1] = recent[1], recent[0]
+
+        app = AppSelectRecent(root)
+        exit_code, path = app.run([(name, False) for name in recent])
+    else:
+        app = AppSelectInPanes(root)
+        exit_code, path = app.run(
+            folder,
+            FsListFiles(app.root, target_is_file, target_is_executable, show_dot_files),
+            root_history=field_or_else(settings_for_root, 'history', {})
+        )
+    if path is None:
+        sys.exit(1)
+    rel_path_from_root = os.path.relpath(path, start=app.root)
+    update_recents(recent, rel_path_from_root)
+    all_settings.save(settings_for_root, root)
+    ret_rel_path = '-r' in sys.argv[1:]
+    ret_rel_path_from_root = '-R' in sys.argv[1:]
+    if ret_rel_path:
+        res = os.path.relpath(path)
+    elif ret_rel_path_from_root:
+        res = rel_path_from_root
+    else:
+        res = path
+    print(res)
+    sys.exit(exit_code)
+
+
 if __name__ == "__main__":
     if sys.stdin.isatty():
-        path_args = [arg for arg in sys.argv[1:] if not arg.startswith('-')]
-        folder = os.getenv('PWD') if len(path_args) != 1 else path_args[0]
-        target_is_file = '-f' in sys.argv[1:]
-        target_is_executable = '-x' in sys.argv[1:]
-        show_dot_files = '-a' in sys.argv[1:]
-        show_recent = '-e' in sys.argv[1:]
-
-        if target_is_file:
-            field_for_recent = 'recent-executables' if target_is_executable else 'recent-files'
-        else:
-            field_for_recent = 'recent-folders'
-
-        all_settings = AllSettingsFolder(os.getenv("HOME") + "/.cache/fsel")
-        root, folder = find_root(folder, all_settings.roots)
-        settings_for_root = all_settings.load_settings(root)
-        recent = field_or_else(settings_for_root, field_for_recent, [])
-
-        if show_recent:
-            if len(recent) == 0:
-                sys.exit(2)
-
-            # makes little sense to cd to the current directory...
-            if recent[0] == os.path.relpath(os.environ["PWD"], root) and len(recent) > 1:  # PWD for logical path
-                recent[0], recent[1] = recent[1], recent[0]
-
-            app = AppSelectRecent(root)
-            exit_code, path = app.run([(name, False) for name in recent])
-        else:
-            app = AppSelectInPanes(root)
-            exit_code, path = app.run(
-                folder,
-                FsListFiles(app.root, target_is_file, target_is_executable, show_dot_files),
-                root_history=field_or_else(settings_for_root, 'history', {})
-            )
-
-        if path is None:
-            sys.exit(1)
-
-        rel_path_from_root = os.path.relpath(path, start=app.root)
-        update_recents(recent, rel_path_from_root)
-        all_settings.save(settings_for_root, root)
-
-        ret_rel_path = '-r' in sys.argv[1:]
-        ret_rel_path_from_root = '-R' in sys.argv[1:]
-
-        if ret_rel_path:
-            res = os.path.relpath(path)
-        elif ret_rel_path_from_root:
-            res = rel_path_from_root
-        else:
-            res = path
-
-        print(res)
-        sys.exit(exit_code)
+        main()

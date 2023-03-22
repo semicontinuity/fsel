@@ -308,6 +308,7 @@ class ListBoxes:
         self.entry_lister = entry_lister
         self.oracle = oracle
         self.boxes = self.boxes_for_path(initial_path)
+        debug('ListBoxes', boxes_cur_line=[b.cur_line for b in self.boxes], boxes_choices=[b.choice for b in self.boxes])
         self.expand_lists()
 
     def search(self, s: str = ''):
@@ -316,24 +317,27 @@ class ListBoxes:
             child.search(s)
 
     def boxes_for_path(self, initial_path: Sequence[str]) -> List[CustomListBox]:
-        lists = []
+        boxes = []
         index = 0
         while True:
-            a_list = self.make_box_or_none(initial_path[:index])
-            if a_list is None:
+            remaining_path = initial_path[index:]
+            preferred_selection = None if len(remaining_path) == 0 else remaining_path[0]
+            a_box = self.make_box_or_none(initial_path[:index], preferred_selection)
+            if a_box is None:
                 break
-            lists.append(a_list)
+            debug('boxes_for_path', path=initial_path[:index], box_choice=a_box.choice, box_cur_line=a_box.cur_line)
+            boxes.append(a_box)
             index += 1
             if index > len(initial_path):
                 break
 
-        for index, l in enumerate(lists):
-            if index == len(lists) - 1:
+        for index, l in enumerate(boxes):
+            if index == len(boxes) - 1:
                 l.focus = True
                 break
             l.cur_line = l.choice = item_model.index_of_item_text(initial_path[index], l.items) or 0
 
-        return lists
+        return boxes
 
     def expand_lists(self):
         index = len(self.boxes) - 1
@@ -382,18 +386,18 @@ class ListBoxes:
         self.expand_lists()
         return True
 
-    def make_box_or_none(self, path: Sequence[str]) -> Optional[CustomListBox]:
+    def make_box_or_none(self, path: Sequence[str], preferred: Optional[str] = None) -> Optional[CustomListBox]:
         debug("make_box_or_none", path=path)
         items = self.entry_lister(path)
         if len(items) == 0:
             debug("make_box_or_none", items_length=0)
             return None
-        return self.make_box(path, items)
+        return self.make_box(path, items, preferred)
 
-    def make_box(self, path: Sequence[str], items: Sequence[Tuple[str, int]]):
-        debug("make_box", items_length=len(items), path=path)
+    def make_box(self, path: Sequence[str], items: Sequence[Tuple[str, int]], preferred: Optional[str] = None):
+        debug("make_box", items=items, items_length=len(items), path=path)
         box = CustomListBox(item_model.max_item_text_length(items), len(items), items, path, lambda: self.search_string)
-        last_name = self.oracle.recall_chosen_name(path)
+        last_name = self.oracle.recall_chosen_name(path) if not preferred else preferred
         choice = item_model.index_of_item_text(last_name, items)
         box.cur_line = box.choice = 0 if choice is None else choice
         return box
