@@ -55,13 +55,14 @@ bind '"\ez": "$(__fsel_run__ -e)\e\C-e\C-m"'
 bind -x '"\eZ": "__fsel_widget__ -e -f -x"'
 
 
-# ALT-X: cd into the selected directory
+# ALT-X or Alt+End: cd into the selected directory
 #bind '"\ex": "$(__fsel_cd__)\C-x\C-x\C-e\C-x\C-r\C-m\C-w"'
 bind '"\ex": "$(__fsel_cd__)\e\C-e\C-m"'
+bind '"\e[1;3F": "$(__fsel_cd__)\e\C-e\C-m"'
 
-# ALT-SHIFT-X: cd into one of the recent directories
+# ALT-SHIFT-X or Alt+Home: cd into one of the recent directories
 bind '"\eX": "$(__fsel_cd__ -e)\e\C-e\C-m"'
-
+bind '"\e[1;3H": "$(__fsel_cd__ -e)\e\C-e\C-m"'
 
 # CTRL-]: insert the relative file path into command line
 bind -x '"\C-]": "__fsel_widget__ -r -f"'
