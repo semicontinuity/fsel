@@ -215,7 +215,7 @@ class CustomListBox(WListBox):
     def __init__(self, w, h, items: Sequence[Tuple[str, int]], folder=None, search_string_supplier=lambda: ''):
         super().__init__(w, h, items)
         self.folder = folder
-        self.search_string_supplier = search_string_supplier
+        self.match_string_supplier = search_string_supplier
         self.all_items = items
 
     def __repr__(self):
@@ -244,13 +244,14 @@ class CustomListBox(WListBox):
             self.show_real_line(item, i)
 
     def show_real_line(self, item, i):
-        search_string = self.search_string_supplier()
+        match_string = self.match_string_supplier()
         l = item_model.item_text(item)
-        match_from = -1 if len(search_string) <= 0 else l.find(search_string)
-        match_to = match_from + len(search_string)
+        match_from = -1 if len(match_string) <= 0 else l.find(match_string)
+        match_to = match_from + len(match_string)
         l = l[:self.width]
         match_from = min(match_from, self.width)
         match_to = min(match_to, self.width)
+        debug('show_real_line', l=l, match_from=match_from, match_to=match_to)
         palette = colors.palette(item_model.attrs(item), self.focus, self.cur_line == i)
 
         if match_from != -1:
@@ -288,23 +289,31 @@ class CustomListBox(WListBox):
         content = []
         cur_item = self.items[self.cur_line]
         new_current_line = 0
+        found = False
 
         for i, item in enumerate(self.all_items):
-            if item == cur_item or item_model.item_text(item).find(s) >= 0:
-                if item == cur_item:
-                    new_current_line = len(content)
+            debug('CustomListBox.search', s=s, i=i, text=item_model.item_text(item))
+            is_current = item == cur_item
+            is_match = item_model.item_text(item).find(s) >= 0
+            if is_match:
+                debug('CustomListBox.search', found=True)
+                found = True
+            if is_current:
+                debug('CustomListBox.search', cur_line=self.cur_line)
+                new_current_line = len(content)
+            if is_match or is_current:
                 content.append(item)
 
-        self.set_items(content)
-        self.cur_line = new_current_line
+        return found, new_current_line, content
 
 
 class ListBoxes:
     boxes: List[CustomListBox]
     search_string: str = ''
+    match_string: str = ''
 
     def __init__(self, entry_lister: Callable[[Sequence[str]], Sequence[Tuple[str, int]]], oracle: Oracle, initial_path: List):
-        debug('ListBoxes', initial_path=initial_path)
+        # debug('ListBoxes', initial_path=initial_path)
         self.entry_lister = entry_lister
         self.oracle = oracle
         self.boxes = self.boxes_for_path(initial_path)
@@ -312,9 +321,21 @@ class ListBoxes:
         self.expand_lists()
 
     def search(self, s: str = ''):
+        debug('ListBoxes.search', s=s)
         self.search_string = s
-        for child in self.boxes:
-            child.search(s)
+
+        found_somewhere = False
+        for box in self.boxes:
+            found, new_current_line, content = box.search(s)
+            found_somewhere |= found
+        debug('ListBoxes.search', found_somewhere=found_somewhere)
+
+        if found_somewhere:
+            self.match_string = s
+            for box in self.boxes:
+                found, new_current_line, content = box.search(s)
+                box.set_items(content)
+                box.cur_line = new_current_line
 
     def boxes_for_path(self, initial_path: Sequence[str]) -> List[CustomListBox]:
         boxes = []
@@ -325,7 +346,7 @@ class ListBoxes:
             a_box = self.make_box_or_none(initial_path[:index], preferred_selection)
             if a_box is None:
                 break
-            debug('boxes_for_path', path=initial_path[:index], box_choice=a_box.choice, box_cur_line=a_box.cur_line)
+            # debug('boxes_for_path', path=initial_path[:index], box_choice=a_box.choice, box_cur_line=a_box.cur_line)
             boxes.append(a_box)
             index += 1
             if index > len(initial_path):
@@ -342,7 +363,7 @@ class ListBoxes:
     def expand_lists(self):
         index = len(self.boxes) - 1
         while True:
-            debug("expand_lists", index=index)
+            # debug("expand_lists", index=index)
             if self.is_at_leaf(index):
                 debug("expand_lists", index=index, is_at_leaf=True)
                 break
@@ -350,7 +371,7 @@ class ListBoxes:
             name = self.oracle.recall_chosen_name(path)
             index += 1
             a_list = self.make_box_or_none(path)
-            debug("expand_lists", index=index, a_list_not_none=a_list is not None)
+            # debug("expand_lists", index=index, a_list_not_none=a_list is not None)
             if a_list is None or a_list.cur_line is None:
                 break
             self.boxes.append(a_list)
@@ -358,18 +379,18 @@ class ListBoxes:
                 continue
             if name is None:
                 break
-        debug("expand_lists", boxes_heights=[b.height for b in self.boxes])
+        # debug("expand_lists", boxes_heights=[b.height for b in self.boxes])
 
     def activate_sibling(self, index):
-        debug("activate_sibling", index=index)
+        # debug("activate_sibling", index=index)
         self.boxes = self.boxes[: index + 1]
         self.expand_lists()
         self.memorize_choice_in_list(index, False)
 
     def try_to_go_in(self, index):
-        debug("try_to_go_in", index=index)
+        # debug("try_to_go_in", index=index)
         is_at_leaf = self.is_at_leaf(index)
-        debug("try_to_go_in", is_at_leaf=is_at_leaf)
+        # debug("try_to_go_in", is_at_leaf=is_at_leaf)
         not_last = index != len(self.boxes) - 1
         if not_last or is_at_leaf:
             return
@@ -378,7 +399,7 @@ class ListBoxes:
 
         new_box = self.make_box_or_none(self.path(index))
         if new_box is None:
-            debug("try_to_go_in", new_box=None)
+            # debug("try_to_go_in", new_box=None)
             return
 
         debug("try_to_go_in", new_box_height=new_box.height)
@@ -387,16 +408,16 @@ class ListBoxes:
         return True
 
     def make_box_or_none(self, path: Sequence[str], preferred: Optional[str] = None) -> Optional[CustomListBox]:
-        debug("make_box_or_none", path=path)
+        # debug("make_box_or_none", path=path)
         items = self.entry_lister(path)
         if len(items) == 0:
-            debug("make_box_or_none", items_length=0)
+            # debug("make_box_or_none", items_length=0)
             return None
         return self.make_box(path, items, preferred)
 
     def make_box(self, path: Sequence[str], items: Sequence[Tuple[str, int]], preferred: Optional[str] = None):
-        debug("make_box", items=items, items_length=len(items), path=path)
-        box = CustomListBox(item_model.max_item_text_length(items), len(items), items, path, lambda: self.search_string)
+        # debug("make_box", items=items, items_length=len(items), path=path)
+        box = CustomListBox(item_model.max_item_text_length(items), len(items), items, path, lambda: self.match_string)
         last_name = self.oracle.recall_chosen_name(path) if not preferred else preferred
         choice = item_model.index_of_item_text(last_name, items)
         box.cur_line = box.choice = 0 if choice is None else choice
@@ -601,10 +622,12 @@ class SelectPathDialog(AbstractSelectionDialog):
         return self.folder_lists.items_path(self.focus_idx)
 
     def handle_search_key(self, key):
+        debug("handle_search_key", key=key)
         widget: WListBox = self.focus_w
 
         if key == KEY_DELETE:
             self.folder_lists.search_string = ''
+            self.folder_lists.match_string = ''
             # self.search_widget_all(widget)
         elif key == KEY_ALT_UP:
             self.search_widget_up(widget)
@@ -627,24 +650,30 @@ class SelectPathDialog(AbstractSelectionDialog):
                 self.make_focused_column_visible(True)
             return True
         elif key == KEY_BACKSPACE:
-            self.folder_lists.search(self.folder_lists.search_string[:-1])
+            new_search_string = self.folder_lists.search_string[:-1]
+            self.folder_lists.search(new_search_string)
             # self.search_widget_all(widget)
         elif type(key) is bytes and not key.startswith(b'\x1b'):
+            debug('SelectPathDialog.handle_search_key', key=key)
             self.folder_lists.search(self.folder_lists.search_string + key.decode("utf-8"))
-            count, idx, line, match_indices_by_widget = self.search_widgets_all()
+            count, idx, line, match_indices_by_box = self.matches_in_boxes()
+            debug('SelectPathDialog.handle_search_key', count=count)
             if count == 1:
+                # Just 1 match in all widgets
                 self.focus_idx = idx
                 box = self.folder_lists.boxes[idx]
                 box.cur_line = line
                 box.make_cur_line_visible()
                 self.change_focus(box)
                 self.make_focused_column_visible(True)
-                self.folder_lists.search()
-            elif self.focus_idx in match_indices_by_widget:
+                # self.folder_lists.search()
+            elif self.focus_idx in match_indices_by_box:
                 # better to binary-search for nearest match?
                 box = self.folder_lists.boxes[self.focus_idx]
-                box.cur_line = match_indices_by_widget[self.focus_idx][0]
+                box.cur_line = match_indices_by_box[self.focus_idx][0]
                 box.make_cur_line_visible()
+            else:
+                debug('SelectPathDialog.handle_search_key', focused=False)
             return True
         else:
             return False
@@ -667,35 +696,35 @@ class SelectPathDialog(AbstractSelectionDialog):
         return self.search_widget_and_scroll(range(widget.cur_line, widget.cur_line + len(widget.items)), skip_if_on_match, widget)
 
     def search_widget_and_scroll(self, search_range, skip_if_on_match, widget: CustomListBox):
-        if self.folder_lists.search_string != '':
-            if skip_if_on_match and item_model.item_text(widget.items[widget.cur_line]).find(self.folder_lists.search_string) != -1:
+        if self.folder_lists.match_string != '':
+            if skip_if_on_match and item_model.item_text(widget.items[widget.cur_line]).find(self.folder_lists.match_string) != -1:
                 return
             for j in search_range:
                 i = j % len(widget.items)
-                if item_model.item_text(widget.items[i]).find(self.folder_lists.search_string) != -1:
+                if item_model.item_text(widget.items[i]).find(self.folder_lists.match_string) != -1:
                     widget.cur_line = widget.choice = i
                     widget.make_cur_line_visible()
                     return i
 
-    def search_widget_get_match(self, widget: WListBox) -> Tuple[int, int, List[int]]:
+    def search_widget_get_matches(self, widget: WListBox) -> Tuple[int, int, List[int]]:
         match_count = 0
         last_match_line = 0
         match_indices = []
-        if self.folder_lists.search_string != '':
+        if self.folder_lists.match_string != '':
             for i in range(0, len(widget.items)):
-                if item_model.item_text(widget.items[i]).find(self.folder_lists.search_string) != -1:
+                if item_model.item_text(widget.items[i]).find(self.folder_lists.match_string) != -1:
                     match_count += 1
                     last_match_line = i
                     match_indices.append(i)
         return match_count, last_match_line, match_indices
 
-    def search_widgets_all(self) -> Tuple[int, int, int, Dict[int, List[int]]]:
+    def matches_in_boxes(self) -> Tuple[int, int, int, Dict[int, List[int]]]:
         count = 0
         last_line = 0
         last_idx = 0
         match_indices_by_widget = {}
         for idx in range(0, len(self.folder_lists.boxes)):
-            matches_in_widget, last_match_line, match_indices = self.search_widget_get_match(self.folder_lists.boxes[idx])
+            matches_in_widget, last_match_line, match_indices = self.search_widget_get_matches(self.folder_lists.boxes[idx])
             if matches_in_widget > 0:
                 count += matches_in_widget
                 last_idx = idx
