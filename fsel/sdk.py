@@ -263,9 +263,13 @@ class CustomListBox(WListBox):
 
             # self.attr_reset()
             # self.attr_color(palette[Colors.C_IDX_MATCH_FG], palette[Colors.C_IDX_BG])
-            self.attr_underlined(self.is_full_match_supplier())
+            self.attr_reversed()
+            if not self.is_full_match_supplier():
+                self.attr_crossed_out()
             p_ctx.paint_string(l[match_from: match_to])
-            self.attr_not_underlined()
+            if not self.is_full_match_supplier():
+                self.attr_not_crossed_out()
+            self.attr_not_reversed()
             # self.attr_reset()
 
             self.attr_color(palette[Colors.C_IDX_REG_FG], palette[Colors.C_IDX_BG])
@@ -295,6 +299,30 @@ class CustomListBox(WListBox):
     @staticmethod
     def attr_not_underlined():
         Screen.wr("\x1b[24m")
+
+    @staticmethod
+    def attr_reversed():
+        Screen.wr("\x1b[7m")
+
+    @staticmethod
+    def attr_not_reversed():
+        Screen.wr("\x1b[27m")
+
+    @staticmethod
+    def attr_blinking():
+        Screen.wr("\x1b[5m")
+
+    @staticmethod
+    def attr_not_blinking():
+        Screen.wr("\x1b[25m")
+
+    @staticmethod
+    def attr_crossed_out():
+        Screen.wr("\x1b[9m")
+
+    @staticmethod
+    def attr_not_crossed_out():
+        Screen.wr("\x1b[29m")
 
     def search(self, s: str):
         content = []
