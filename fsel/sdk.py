@@ -212,10 +212,11 @@ class ItemModel:
 
 
 class CustomListBox(WListBox):
-    def __init__(self, w, h, items: Sequence[Tuple[str, int]], folder=None, search_string_supplier=lambda: ''):
+    def __init__(self, w, h, items: Sequence[Tuple[str, int]], folder=None, search_string_supplier=lambda: '', is_full_match_supplier=lambda: True):
         super().__init__(w, h, items)
         self.folder = folder
         self.match_string_supplier = search_string_supplier
+        self.is_full_match_supplier = is_full_match_supplier
         self.all_items = items
 
     def __repr__(self):
@@ -260,11 +261,13 @@ class CustomListBox(WListBox):
 
             p_ctx.paint_string(l[:match_from])
 
-            self.attr_reset()
-            self.attr_color(palette[Colors.C_IDX_MATCH_FG], palette[Colors.C_IDX_BG])
+            # self.attr_reset()
+            # self.attr_color(palette[Colors.C_IDX_MATCH_FG], palette[Colors.C_IDX_BG])
+            self.attr_underlined(self.is_full_match_supplier())
             p_ctx.paint_string(l[match_from: match_to])
+            self.attr_not_underlined()
+            # self.attr_reset()
 
-            self.attr_reset()
             self.attr_color(palette[Colors.C_IDX_REG_FG], palette[Colors.C_IDX_BG])
             p_ctx.paint_string(l[match_to:])
         else:
@@ -284,6 +287,14 @@ class CustomListBox(WListBox):
     @staticmethod
     def attr_color(fg, bg=-1):
         Screen.wr("\x1b[38;5;%d;48;5;%dm" % (fg, bg))
+
+    @staticmethod
+    def attr_underlined(double: bool):
+        Screen.wr("\x1b[21m" if double else "\x1b[4m")
+
+    @staticmethod
+    def attr_not_underlined():
+        Screen.wr("\x1b[24m")
 
     def search(self, s: str):
         content = []
@@ -417,7 +428,7 @@ class ListBoxes:
 
     def make_box(self, path: Sequence[str], items: Sequence[Tuple[str, int]], preferred: Optional[str] = None):
         # debug("make_box", items=items, items_length=len(items), path=path)
-        box = CustomListBox(item_model.max_item_text_length(items), len(items), items, path, lambda: self.match_string)
+        box = CustomListBox(item_model.max_item_text_length(items), len(items), items, path, lambda: self.match_string, lambda: self.match_string == self.search_string)
         last_name = self.oracle.recall_chosen_name(path) if not preferred else preferred
         choice = item_model.index_of_item_text(last_name, items)
         box.cur_line = box.choice = 0 if choice is None else choice
