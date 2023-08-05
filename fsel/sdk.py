@@ -109,9 +109,16 @@ class FsListFiles:
         full_fs_path = os.path.join(self.root, *path)
         try:
             result = []
+            # see DirEntry
             for entry in os.scandir(full_fs_path):
                 if entry.is_dir() and not entry.name.startswith('.'):
-                    result.append((entry.name, entry.stat().st_mode | ItemModel.FLAG_DIRECTORY))
+                    st_mode = entry.stat().st_mode
+                    result.append(
+                        (
+                            entry.name,
+                            (st_mode | ItemModel.FLAG_DIRECTORY) | (ItemModel.FLAG_ITALIC if entry.is_symlink() else 0)
+                        )
+                    )
             return sorted(result, key=lambda e: e[0])
         except PermissionError:
             return []
@@ -192,12 +199,16 @@ class JsonModel:
 
 class ItemModel:
     FLAG_DIRECTORY = 0x8000
+    FLAG_ITALIC = 0x10000
 
     def attrs(self, item: Tuple[str, int]):
         return item[1]
 
     def is_leaf(self, item: Tuple[str, int]):
         return (item[1] & ItemModel.FLAG_DIRECTORY) == 0
+
+    def is_italic(self, item: Tuple[str, int]):
+        return (item[1] & ItemModel.FLAG_ITALIC) != 0
 
     def max_item_text_length(self, items):
         return max(len(item[0]) for item in items)
@@ -257,6 +268,7 @@ class CustomListBox(WListBox):
 
         if match_from != -1:
             self.attr_reset()
+            self.attr_italic(item_model.is_italic(item))
             self.attr_color(palette[Colors.C_IDX_REG_FG], palette[Colors.C_IDX_BG])
 
             p_ctx.paint_string(l[:match_from])
@@ -276,6 +288,7 @@ class CustomListBox(WListBox):
             p_ctx.paint_string(l[match_to:])
         else:
             self.attr_reset()
+            self.attr_italic(item_model.is_italic(item))
             self.attr_color(palette[Colors.C_IDX_REG_FG], palette[Colors.C_IDX_BG])
             p_ctx.paint_string(l)
 
@@ -299,6 +312,10 @@ class CustomListBox(WListBox):
     @staticmethod
     def attr_not_underlined():
         Screen.wr("\x1b[24m")
+
+    @staticmethod
+    def attr_italic(on: bool):
+        Screen.wr("\x1b[3m" if on else "\x1b[23m")
 
     @staticmethod
     def attr_reversed():
