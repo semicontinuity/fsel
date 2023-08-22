@@ -4,9 +4,10 @@ from typing import Optional, List, Dict, AnyStr, Tuple, Callable, Iterable, Sequ
 
 from picotui.widgets import WListBox, Dialog, ACTION_CANCEL, ACTION_OK
 
-from .exit_codes import EXIT_CODE_ENTER, EXIT_CODE_ESCAPE
+from .exit_codes import EXIT_CODE_ENTER, EXIT_CODE_ESCAPE, EXIT_CODE_ALT, EXIT_CODE_HOME
 from .exit_codes_mapping import KEYS_TO_EXIT_CODES
 from .logging import debug
+from .picotui_keys import KEY_ALT_HOME
 from .picotui_patch import patch_picotui
 
 patch_picotui()
@@ -597,7 +598,9 @@ class SelectPathDialog(AbstractSelectionDialog):
             return KEY_QUIT
         if key == KEY_ESC and self.finish_on_esc:
             return ACTION_CANCEL
-
+        if key == KEY_ALT_HOME:
+            self.focus_idx = -1
+            return KEY_ALT_HOME
         if key in KEYS_TO_EXIT_CODES:
             return key
 

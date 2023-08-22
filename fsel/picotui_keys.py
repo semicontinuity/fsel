@@ -5,6 +5,7 @@ KEY_ALT_ENTER = b'\x1b\x0d'
 # no Ctrl+Enter, Shift+Enter, Ctrl+Alt+Enter, Alt+Shift+Enter:
 # but have Ctrl+Space, Ctrl+Alt+Space, Alt+Shift+Space
 
+KEY_ALT_HOME = b'\x1b[1;3H'
 KEY_ALT_RIGHT = b'\x1b[1;3C'
 KEY_ALT_LEFT = b'\x1b[1;3D'
 KEY_CTRL_RIGHT = b'\x1b[1;5C'
