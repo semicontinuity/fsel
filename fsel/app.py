@@ -96,6 +96,9 @@ def main():
     all_settings = AllSettingsFolder(os.getenv("HOME") + "/.cache/fsel")
     if search_root_from_work_dir:
         root, _ = find_root(wd, all_settings.roots)
+        rel_path = os.path.relpath(folder, root)
+        if rel_path.startswith('..'):
+            root, folder = find_root(folder, all_settings.roots)
     else:
         root, folder = find_root(folder, all_settings.roots)
     debug("main", root=root, folder=folder)
