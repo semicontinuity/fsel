@@ -15,13 +15,13 @@ __fsel_cd__() {
   while true; do
     local dir
     local res
-    dir=$(python3 -m fsel.app "${args[@]}")
+    dir=$(python3 -m fsel.app -W "${args[@]}")
     res=$?
 
     # On Alt+Enter, continue with the link target
     [[ $res == 80 ]] && args=($(realpath "$dir")) && continue
     # On Alt+Home, continue with the parent of the returned root folder
-    [[ $res == 95 ]] && args=($(dirname "$dir")) && continue
+    [[ $res == 95 ]] && cd $(dirname "$dir") && args=($dir) && continue
 
     [[ $res == 14 ]] && printf 'rm -rf %q' "$dir"
     [[ $res == 0 ]] && printf 'cd %q' "$dir"
