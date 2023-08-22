@@ -11,12 +11,20 @@ __fsel_edit__() {
 }
 
 __fsel_cd__() {
-  local dir
-  local res
-  dir=$(python3 -m fsel.app "$@")
-  res=$?
-  [[ $res == 14 ]] && printf 'rm -rf %q' "$dir"
-  [[ $res == 0 ]] && printf 'cd %q' "$dir"
+  local args=("$@")
+  while true; do
+    local dir
+    local res
+    dir=$(python3 -m fsel.app "${args[@]}")
+    res=$?
+
+    # On Alt+Enter, continue with the link target
+    [[ $res == 80 ]] && args=($(realpath "$dir")) && continue
+
+    [[ $res == 14 ]] && printf 'rm -rf %q' "$dir"
+    [[ $res == 0 ]] && printf 'cd %q' "$dir"
+    break
+  done
 }
 
 __fsel_run__() {
