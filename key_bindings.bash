@@ -21,8 +21,6 @@ __fsel_cd__() {
     # On Alt+Enter, continue with the link target
     [[ $res == 80 ]] && args=($(realpath "$dir")) && continue
     # On Alt+Home, continue with the parent of the returned root folder
-    [[ $res == 95 ]] && echo "$dir" >&2
-    [[ $res == 95 ]] && dirname "$dir" >&2
     [[ $res == 95 ]] && args=($(dirname "$dir")) && continue
 
     [[ $res == 14 ]] && printf 'rm -rf %q' "$dir"

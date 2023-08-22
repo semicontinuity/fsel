@@ -108,6 +108,8 @@ class FsListFiles:
 
     def list_folders(self, path: Sequence[str]) -> List[Tuple[str, int]]:
         full_fs_path = os.path.join(self.root, *path)
+        if full_fs_path == '':
+            sys.exit(1)
         try:
             result = []
             # see DirEntry
@@ -232,7 +234,7 @@ class CustomListBox(WListBox):
         self.all_items = items
 
     def __repr__(self):
-        return f'{self.folder}: {self.items[self.cur_line]}'
+        return f'{self.folder}: {self.items[self.cur_line]} [focused:{self.focus}]'
 
     def make_cur_line_visible(self):
         overshoot = self.cur_line - (self.top_line + self.height)
@@ -370,12 +372,11 @@ class ListBoxes:
     match_string: str = ''
 
     def __init__(self, entry_lister: Callable[[Sequence[str]], Sequence[Tuple[str, int]]], oracle: Oracle, initial_path: List):
-        # debug('ListBoxes', initial_path=initial_path)
+        debug('ListBoxes', initial_path=initial_path)
         self.entry_lister = entry_lister
         self.oracle = oracle
         self.boxes = self.boxes_for_path(initial_path)
-        debug('ListBoxes', boxes_cur_line=[b.cur_line for b in self.boxes], boxes_choices=[b.choice for b in self.boxes])
-        self.expand_lists()
+        debug('ListBoxes', boxes=self.boxes)
 
     def search(self, s: str = ''):
         debug('ListBoxes.search', s=s)
@@ -409,11 +410,13 @@ class ListBoxes:
             if index > len(initial_path):
                 break
 
+        debug("boxes_for_path", initial_path=initial_path)
         for index, l in enumerate(boxes):
-            if index == len(boxes) - 1:
+            if index == len(initial_path) - 1 or len(initial_path) == 0:
                 l.focus = True
                 break
-            l.cur_line = l.choice = item_model.index_of_item_text(initial_path[index], l.items) or 0
+            if index < len(initial_path):
+                l.cur_line = l.choice = item_model.index_of_item_text(initial_path[index], l.items) or 0
 
         return boxes
 
@@ -533,7 +536,6 @@ class DynamicDialog(Dialog):
                 self.focus_w.focus = True
 
         self.clear()
-        debug("DynamicDialog.redraw", childs_length=len(self.childs))
         for w in self.childs:
             w.redraw()
 
@@ -552,6 +554,7 @@ class SelectPathDialog(AbstractSelectionDialog):
         super().__init__(screen_height, x, y, width, height)
         self.screen_width = screen_width
         self.folder_lists = folder_lists
+        folder_lists.expand_lists()
         self.layout()
         self.make_focused_column_visible(True)
 
@@ -566,6 +569,7 @@ class SelectPathDialog(AbstractSelectionDialog):
             self.add(child_x, 0, child)
             child_x += child.width + 1
             if child.focus:
+                debug("SelectPathDialog.layout", focus=child)
                 self.focus_w = child
                 self.focus_idx = i
         debug("SelectPathDialog.layout", childs_length=len(self.childs))
@@ -900,7 +904,7 @@ class AllSettingsFolder:
 
 
 class Colors:
-    BLUE = 17
+    BLUE = 20
     B_YELLOW = 227
     B_GREEN = 120
     B_RED = 196
