@@ -731,9 +731,14 @@ class SelectPathDialog(AbstractSelectionDialog):
                 self.make_focused_column_visible(True)
                 # self.folder_lists.search()
             elif self.focus_idx in match_indices_by_box:
-                # better to binary-search for nearest match?
+                # Do not search in the current box.
+                # It will change selection, and matches in other boxes will be 'lost'.
+                # And the user, perhaps, searched for them.
+                # Disappearing matches are frustrating.
+
+                # -- better to binary-search for nearest match?
                 box = self.folder_lists.boxes[self.focus_idx]
-                box.cur_line = match_indices_by_box[self.focus_idx][0]
+                # box.cur_line = match_indices_by_box[self.focus_idx][0]
                 box.make_cur_line_visible()
             else:
                 debug('SelectPathDialog.handle_search_key', focused=False)
@@ -904,7 +909,7 @@ class AllSettingsFolder:
 
 
 class Colors:
-    BLUE = 20
+    BLUE = 18
     B_YELLOW = 227
     B_GREEN = 120
     B_RED = 196
