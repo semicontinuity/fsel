@@ -147,7 +147,7 @@ class FsListFiles:
 
 
 class Oracle:
-    def memorize(self, path: Sequence[AnyStr], name: AnyStr, persistent: bool):
+    def memorize(self, path: List[AnyStr], name: AnyStr, persistent: bool):
         pass
 
     def recall_chosen_name(self, path: Sequence[AnyStr]) -> Optional[AnyStr]:
@@ -158,17 +158,35 @@ class Oracle:
 
 
 class PathOracle(Oracle):
-    def __init__(self, root_history: Dict):
+    def __init__(self, root_history: Dict, usage_stats: Dict):
         self.root_history = root_history
+        self.usage_stats = usage_stats
         self.visit_history = {}
+        self.session_stats = {}
 
-    def memorize(self, path: Sequence[AnyStr], name: AnyStr, persistent: bool):
+    def memorize(self, path: List[AnyStr], name: AnyStr, persistent: bool):
         history = self.root_history if persistent else self.visit_history
         history[self.string_path(path)] = name
+        stat_path = []
+        stat_path += path
+        stat_path.append('.') # '.' is a special entry for counter
+        self.incr(self.usage_stats if persistent else self.session_stats, stat_path)
 
     def recall_chosen_name(self, path: Sequence[AnyStr]) -> Optional[AnyStr]:
         string_path = self.string_path(path)
         return self.visit_history.get(string_path) or self.root_history.get(string_path)
+
+    def incr(self, stats: Dict, path: List):
+        if len(path) == 1:
+            value = stats.get(path[0]) or 0
+            stats[path[0]] = value + 1
+        else:
+            entry = stats.get(path[0])
+            if entry is None:
+                entry = {}
+                stats[path[0]] = entry
+
+            self.incr(entry, path[1:])
 
     @staticmethod
     def string_path(path: Sequence):
@@ -605,7 +623,7 @@ class SelectPathDialog(AbstractSelectionDialog):
         if key == KEY_ALT_HOME:
             self.focus_idx = -1
             return KEY_ALT_HOME
-        if key in KEYS_TO_EXIT_CODES:
+        if key != KEY_ENTER and key != KEY_SHIFT_TAB and key != KEY_TAB and key in KEYS_TO_EXIT_CODES:
             return key
 
         if key == KEY_RIGHT:

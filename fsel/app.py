@@ -1,6 +1,6 @@
 import os
 import sys
-from typing import Tuple, Set
+from typing import Tuple, Set, Dict
 
 from fsel.logging import debug
 from fsel.sdk import FsListFiles, run_dialog, ItemSelectionDialog, full_path, item_model, field_or_else, \
@@ -28,8 +28,8 @@ class AppSelectRecent(FsApp):
 
 class AppSelectInPanes(FsApp):
 
-    def run(self, path: str, fs_lister, root_history):
-        fs_oracle = PathOracle(root_history)
+    def run(self, path: str, fs_lister, root_history: Dict, usage_stats: Dict):
+        fs_oracle = PathOracle(root_history, usage_stats)
 
         rel_path = os.path.relpath(path, self.root)
         debug("AppSelectInPanes.run", path=path, rel_path=rel_path)
@@ -119,7 +119,8 @@ def main():
         exit_code, path = app.run(
             folder,
             FsListFiles(app.root, target_is_file, target_is_executable, show_dot_files),
-            root_history=field_or_else(settings_for_root, 'history', {})
+            root_history=field_or_else(settings_for_root, 'history', {}),
+            usage_stats=field_or_else(settings_for_root, 'usage_stats', {})
         )
     if path is None:
         sys.exit(1)
