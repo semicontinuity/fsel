@@ -4,7 +4,6 @@ from typing import Sequence, Tuple
 from fsel.sdk import run_dialog, SelectPathDialog, PathOracle, ListBoxes, ItemModel
 
 if __name__ == "__main__":
-
     class Lister:
         tree = {
             "": ("node1", "node2",),
@@ -21,7 +20,8 @@ if __name__ == "__main__":
         def attribute(self, node: str) -> int:
             return ItemModel.FLAG_DIRECTORY if Lister.tree.get(node) else 0
 
-    view = ListBoxes(Lister(), PathOracle({}), [])
+
+    view = ListBoxes(Lister(), PathOracle({}, {}), [])
 
     exit_code, path = run_dialog(
         lambda screen_height, screen_width, cursor_y, cursor_x:

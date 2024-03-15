@@ -131,7 +131,7 @@ class FsListFiles:
             return []
         full_fs_path = os.path.join(self.root, *p)
         try:
-            name: List[str] = os.listdir(full_fs_path)
+            name: List[str] = os.listdirlister(full_fs_path)
             return [(entry, 0) for entry in sorted(name) if self.is_suitable_file(full_fs_path, entry)]
         except PermissionError:
             return []
