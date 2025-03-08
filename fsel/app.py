@@ -81,9 +81,14 @@ def update_recents(recent, rel_path_from_root):
 
 
 def main():
+    """
+    Arguments: [-W] [-f] [-x] [-a] [-e] [selected folder] [displayed root]
+    """
     path_args = [arg for arg in sys.argv[1:] if not arg.startswith('-')]
     wd = os.getenv('PWD')
     folder = wd if len(path_args) != 1 else os.path.realpath(path_args[0])
+    displayed_root = None if len(path_args) < 2 else os.path.realpath(path_args[1])
+
     search_root_from_work_dir = '-W' in sys.argv[1:]
     target_is_file = '-f' in sys.argv[1:]
     target_is_executable = '-x' in sys.argv[1:]
@@ -104,6 +109,9 @@ def main():
     debug("main", root=root, folder=folder)
     settings_for_root = all_settings.load_settings(root)
     recent = field_or_else(settings_for_root, field_for_recent, [])
+
+    app = AppSelectInPanes(displayed_root or root)
+
     if show_recent:
         if len(recent) == 0:
             sys.exit(2)
@@ -112,18 +120,18 @@ def main():
         if recent[0] == os.path.relpath(os.environ["PWD"], root) and len(recent) > 1:  # PWD for logical path
             recent[0], recent[1] = recent[1], recent[0]
 
-        app = AppSelectRecent(root)
         exit_code, path = app.run([(name, False) for name in recent])
     else:
-        app = AppSelectInPanes(root)
         exit_code, path = app.run(
             folder,
             FsListFiles(app.root, target_is_file, target_is_executable, show_dot_files),
             root_history=field_or_else(settings_for_root, 'history', {}),
             usage_stats=field_or_else(settings_for_root, 'usage_stats', {})
         )
+
     if path is None:
         sys.exit(1)
+
     rel_path_from_root = os.path.relpath(path, start=app.root)
     update_recents(recent, rel_path_from_root)
     all_settings.save(settings_for_root, root)
