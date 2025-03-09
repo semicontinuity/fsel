@@ -4,7 +4,7 @@ from typing import Optional, List, Dict, AnyStr, Tuple, Callable, Iterable, Sequ
 
 from picotui.widgets import WListBox, Dialog, ACTION_CANCEL, ACTION_OK
 
-from .exit_codes import EXIT_CODE_ENTER, EXIT_CODE_ESCAPE, EXIT_CODE_ALT, EXIT_CODE_HOME
+from .exit_codes import EXIT_CODE_ENTER, EXIT_CODE_ESCAPE
 from .exit_codes_mapping import KEYS_TO_EXIT_CODES
 from .logging import debug
 from .picotui_keys import KEY_ALT_HOME
@@ -349,7 +349,22 @@ class CustomListBox(WListBox):
 
     @staticmethod
     def attr_color(fg, bg=-1):
-        Screen.wr("\x1b[38;5;%d;48;5;%dm" % (fg, bg))
+        if bg == -1:
+            bg = fg >> 4
+            fg &= 0xf
+
+        if type(fg) is tuple:
+            r, g, b = fg
+            s = "\x1b[38;2;%d;%d;%d;" % (r, g, b)
+        else:
+            s = "\x1b[38;5;%d;" % (fg,)
+        if type(bg) is tuple:
+            r, g, b = bg
+            s += "48;2;%d;%d;%dm" % (r, g, b)
+        else:
+            s += "48;5;%dm" % (bg,)
+
+        Screen.wr(s)
 
     @staticmethod
     def attr_underlined(double: bool):
@@ -987,13 +1002,13 @@ class Colors:
 
     C_SUID_FOLDER = [
         # non focused list; non highlighted entry
-        [C_BLACK, B_RED, C_B_RED],
+        [C_BLACK, (192, 48, 48), (255, 64, 64)],
         # non focused list; highlighted entry
-        [BLUE, B_RED, C_B_RED],
+        [BLUE, (192, 48, 48), (255, 64, 64)],
         # focused list; non highlighted entry
-        [C_BLACK, B_RED, C_B_RED],
+        [C_BLACK, (192, 48, 48), (255, 64, 64)],
         # focused list; highlighted entry
-        [CYAN, B_RED, C_B_RED]
+        [CYAN, (192, 48, 48), (255, 64, 64)]
     ]
 
     C_FOLDER = [
