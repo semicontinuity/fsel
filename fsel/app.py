@@ -110,8 +110,6 @@ def main():
     settings_for_root = all_settings.load_settings(root)
     recent = field_or_else(settings_for_root, field_for_recent, [])
 
-    app = AppSelectInPanes(displayed_root or root)
-
     if show_recent:
         if len(recent) == 0:
             sys.exit(2)
@@ -120,8 +118,10 @@ def main():
         if recent[0] == os.path.relpath(os.environ["PWD"], root) and len(recent) > 1:  # PWD for logical path
             recent[0], recent[1] = recent[1], recent[0]
 
+        app = AppSelectRecent(root)
         exit_code, path = app.run([(name, False) for name in recent])
     else:
+        app = AppSelectInPanes(displayed_root or root)
         exit_code, path = app.run(
             folder,
             FsListFiles(app.root, target_is_file, target_is_executable, show_dot_files),
