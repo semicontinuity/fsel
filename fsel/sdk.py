@@ -668,7 +668,7 @@ class SelectPathDialog(AbstractSelectionDialog):
 
         if key == KEY_RIGHT:
             debug("handle_key", key="KEY_RIGHT", focus_idx=self.focus_idx)
-            self.folder_lists.search()
+            # self.folder_lists.search()
             self.layout()
             if self.focus_idx == len(self.folder_lists.boxes) - 1:
                 if self.folder_lists.try_to_go_in(self.focus_idx):
@@ -683,7 +683,7 @@ class SelectPathDialog(AbstractSelectionDialog):
             self.folder_lists.boxes[self.focus_idx].make_cur_line_visible()
             self.redraw()
         elif key == KEY_LEFT:
-            self.folder_lists.search()
+            # self.folder_lists.search()
             self.layout()
             if self.focus_idx != 0:
                 self.move_focus(-1)
@@ -691,7 +691,7 @@ class SelectPathDialog(AbstractSelectionDialog):
             self.folder_lists.boxes[self.focus_idx].make_cur_line_visible()
             self.redraw()
         elif key == KEY_HOME:
-            self.folder_lists.search()
+            # self.folder_lists.search()
             self.layout()
             self.focus_idx = 0
             self.change_focus(self.folder_lists.boxes[self.focus_idx])
@@ -699,7 +699,7 @@ class SelectPathDialog(AbstractSelectionDialog):
             self.folder_lists.boxes[self.focus_idx].make_cur_line_visible()
             self.redraw()
         elif key == KEY_END:
-            self.folder_lists.search()
+            # self.folder_lists.search()
             self.layout()
             self.focus_idx = self.folder_lists.index_of_last_list()
             self.change_focus(self.folder_lists.boxes[self.focus_idx])
@@ -722,6 +722,9 @@ class SelectPathDialog(AbstractSelectionDialog):
                 # self.redraw()
                 res = True
             else:
+                if key == KEY_UP or key == KEY_DOWN or key == KEY_PGUP or key == KEY_PGDN:
+                    self.folder_lists.search()
+
                 res = self.focus_w.handle_key(key)
             # choice_after = self.focus_w.cur_line
 
