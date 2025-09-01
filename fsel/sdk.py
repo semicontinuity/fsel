@@ -102,11 +102,11 @@ class FsListFiles:
         self.executables = executables
         self.dot_files = dot_files
 
-    def __call__(self, p: Sequence[str]) -> Sequence[Tuple[str, int]]:
+    def __call__(self, p: Sequence[str]) -> Sequence[Tuple[str, int, str|None]]:
         """ Each item is a tuple; last element of tuple is int with item attributes (same as in st_mode) """
         return self.list_folders(p) + self.list_files(p)
 
-    def list_folders(self, path: Sequence[str]) -> List[Tuple[str, int]]:
+    def list_folders(self, path: Sequence[str]) -> List[Tuple[str, int, str|None]]:
         full_fs_path = os.path.join(self.root, *path)
         if full_fs_path == '':
             sys.exit(1)
@@ -116,23 +116,32 @@ class FsListFiles:
             for entry in os.scandir(full_fs_path):
                 if entry.is_dir() and not entry.name.startswith('.'):
                     st_mode = entry.stat().st_mode
+                    description = self.get_description(os.path.join(full_fs_path, entry.name))
                     result.append(
                         (
                             entry.name,
-                            (st_mode | ItemModel.FLAG_DIRECTORY) | (ItemModel.FLAG_ITALIC if entry.is_symlink() else 0)
+                            (st_mode | ItemModel.FLAG_DIRECTORY) | (ItemModel.FLAG_ITALIC if entry.is_symlink() else 0),
+                            description,
                         )
                     )
             return sorted(result, key=lambda e: e[0])
         except PermissionError:
             return []
 
-    def list_files(self, p: Sequence[str]) -> List[Tuple[str, int]]:
+    def get_description(aself, path: str):
+        """Get the description from the 'user.description' extended attribute"""
+        try:
+            return os.getxattr(path, 'user.description').decode('utf-8')
+        except (OSError, AttributeError):
+            return None
+
+    def list_files(self, p: Sequence[str]) -> List[Tuple[str, int, str|None]]:
         if not self.select_files:
             return []
         full_fs_path = os.path.join(self.root, *p)
         try:
             name: List[str] = os.listdir(full_fs_path)
-            return [(entry, 0) for entry in sorted(name) if self.is_suitable_file(full_fs_path, entry)]
+            return [(entry, 0, None) for entry in sorted(name) if self.is_suitable_file(full_fs_path, entry)]
         except PermissionError:
             return []
 
@@ -247,29 +256,42 @@ class ItemModel:
     FLAG_DIRECTORY = 0x8000
     FLAG_ITALIC = 0x10000
 
-    def attrs(self, item: Tuple[str, int]):
+    def attrs(self, item: Tuple[str, int, str|None]):
         return item[1]
 
-    def is_leaf(self, item: Tuple[str, int]):
+    def is_leaf(self, item: Tuple[str, int, str|None]):
         return (item[1] & ItemModel.FLAG_DIRECTORY) == 0
 
-    def is_italic(self, item: Tuple[str, int]):
+    def is_italic(self, item: Tuple[str, int, str|None]):
         return (item[1] & ItemModel.FLAG_ITALIC) != 0
 
     def max_item_text_length(self, items):
-        return max(len(item[0]) for item in items)
+        return max(self.item_text_length(item) for item in items)
 
-    def item_text(self, item: Tuple[str, int]) -> str:
+    def item_text(self, item: Tuple[str, int, str|None]) -> str:
+        if item[2] is not None:
+            return item[0] + ' ' + Colors.DESCRIPTION_COLOR_START + item[2] + Colors.DESCRIPTION_COLOR_END
+        else:
+            return item[0]
+
+    # TODO: later, text is cut to this length - but it includes ANSI escapes, so only part of text is visible
+    def item_text_length(self, item: Tuple[str, int, str|None]) -> int:
+        if item[2] is not None:
+            return len(item[0]) + len(' ') + len(item[2])
+        else:
+            return len(item[0])
+
+    def item_file_name(self, item: Tuple[str, int, str|None]) -> str:
         return item[0]
 
-    def index_of_item_text(self, text, items: Iterable[Tuple[str, int]]) -> Optional[int]:
+    def index_of_item_file_name(self, file_name: str, items: Iterable[Tuple[str, int, str | None]]) -> Optional[int]:
         for i, item in enumerate(items):
-            if text == self.item_text(item):
+            if file_name == self.item_file_name(item):
                 return i
 
 
 class CustomListBox(WListBox):
-    def __init__(self, w, h, items: Sequence[Tuple[str, int]], folder=None, search_string_supplier=lambda: '', is_full_match_supplier=lambda: True):
+    def __init__(self, w, h, items: Sequence[Tuple[str, int, str|None]], folder=None, search_string_supplier=lambda: '', is_full_match_supplier=lambda: True):
         super().__init__(w, h, items)
         self.folder = folder
         self.match_string_supplier = search_string_supplier
@@ -309,7 +331,7 @@ class CustomListBox(WListBox):
         l = l[:self.width]
         match_from = min(match_from, self.width)
         match_to = min(match_to, self.width)
-        debug('show_real_line', l=l, match_from=match_from, match_to=match_to)
+        debug('show_real_line', width=self.width, l=l, match_from=match_from, match_to=match_to)
         palette = colors.palette(item_model.attrs(item), self.focus, self.cur_line == i)
 
         if match_from != -1:
@@ -409,9 +431,9 @@ class CustomListBox(WListBox):
         found = False
 
         for i, item in enumerate(self.all_items):
-            debug('CustomListBox.search', s=s, i=i, text=item_model.item_text(item))
+            debug('CustomListBox.search', s=s, i=i, item_file_name=item_model.item_file_name(item))
             is_current = item == cur_item
-            is_match = item_model.item_text(item).find(s) >= 0
+            is_match = item_model.item_file_name(item).find(s) >= 0
             if is_match:
                 debug('CustomListBox.search', found=True)
                 found = True
@@ -425,11 +447,12 @@ class CustomListBox(WListBox):
 
 
 class ListBoxes:
+    entry_lister: Callable[[Sequence[str]], Sequence[Tuple[str, int, str|None]]]
     boxes: List[CustomListBox]
     search_string: str = ''
     match_string: str = ''
 
-    def __init__(self, entry_lister: Callable[[Sequence[str]], Sequence[Tuple[str, int]]], oracle: Oracle, initial_path: List):
+    def __init__(self, entry_lister: Callable[[Sequence[str]], Sequence[Tuple[str, int, str|None]]], oracle: Oracle, initial_path: List):
         debug('ListBoxes', initial_path=initial_path)
         self.entry_lister = entry_lister
         self.oracle = oracle
@@ -474,7 +497,7 @@ class ListBoxes:
                 l.focus = True
                 break
             if index < len(initial_path):
-                l.cur_line = l.choice = item_model.index_of_item_text(initial_path[index], l.items) or 0
+                l.cur_line = l.choice = item_model.index_of_item_file_name(initial_path[index], l.items) or 0
 
         return boxes
 
@@ -533,17 +556,24 @@ class ListBoxes:
             return None
         return self.make_box(path, items, preferred)
 
-    def make_box(self, path: Sequence[str], items: Sequence[Tuple[str, int]], preferred: Optional[str] = None):
+    def make_box(self, path: Sequence[str], items: Sequence[Tuple[str, int, str|None]], preferred: Optional[str] = None):
         # debug("make_box", items=items, items_length=len(items), path=path)
-        box = CustomListBox(item_model.max_item_text_length(items), len(items), items, path, lambda: self.match_string, lambda: self.match_string == self.search_string)
+        box = CustomListBox(
+            item_model.max_item_text_length(items),
+            len(items),
+            items,
+            path,
+            lambda: self.match_string,
+            lambda: self.match_string == self.search_string
+        )
         last_name = self.oracle.recall_chosen_name(path) if not preferred else preferred
-        choice = item_model.index_of_item_text(last_name, items)
+        choice = item_model.index_of_item_file_name(last_name, items)
         box.cur_line = box.choice = 0 if choice is None else choice
         return box
 
     def memorize_choice_in_list(self, index, persistent: bool):
         parent_path = [] if index == 0 else self.path(index - 1)
-        self.oracle.memorize(parent_path, item_model.item_text(self.selected_item_in_list(index)), persistent)
+        self.oracle.memorize(parent_path, item_model.item_file_name(self.selected_item_in_list(index)), persistent)
 
     def index_of_last_list(self):
         return len(self.boxes) - 1
@@ -561,7 +591,7 @@ class ListBoxes:
         return len(self.boxes) == 0
 
     def path(self, index) -> List[str]:
-        return [item_model.item_text(l.items[l.cur_line]) for l in self.boxes[: index + 1]]
+        return [item_model.item_file_name(l.items[l.cur_line]) for l in self.boxes[: index + 1]]
 
     def items_path(self, index):
         return [l.items[l.cur_line] for l in self.boxes[: index + 1]]
@@ -826,11 +856,11 @@ class SelectPathDialog(AbstractSelectionDialog):
 
     def search_widget_and_scroll(self, search_range, skip_if_on_match, widget: CustomListBox):
         if self.folder_lists.match_string != '':
-            if skip_if_on_match and item_model.item_text(widget.items[widget.cur_line]).find(self.folder_lists.match_string) != -1:
+            if skip_if_on_match and item_model.item_file_name(widget.items[widget.cur_line]).find(self.folder_lists.match_string) != -1:
                 return
             for j in search_range:
                 i = j % len(widget.items)
-                if item_model.item_text(widget.items[i]).find(self.folder_lists.match_string) != -1:
+                if item_model.item_file_name(widget.items[i]).find(self.folder_lists.match_string) != -1:
                     widget.cur_line = widget.choice = i
                     widget.make_cur_line_visible()
                     return i
@@ -841,7 +871,7 @@ class SelectPathDialog(AbstractSelectionDialog):
         match_indices = []
         if self.folder_lists.match_string != '':
             for i in range(0, len(widget.items)):
-                if item_model.item_text(widget.items[i]).find(self.folder_lists.match_string) != -1:
+                if item_model.item_file_name(widget.items[i]).find(self.folder_lists.match_string) != -1:
                     match_count += 1
                     last_match_line = i
                     match_indices.append(i)
@@ -976,10 +1006,15 @@ class Colors:
     B_RED = 196
     GRAY = 248
     CYAN = 31
+    YELLOW = 220  # Yellow color for descriptions
 
     C_IDX_BG = 0
     C_IDX_REG_FG = 1
     C_IDX_MATCH_FG = 2
+    
+    # ANSI escape codes for description text
+    DESCRIPTION_COLOR_START = "\033[38;5;220m"  # Yellow color
+    DESCRIPTION_COLOR_END = "\033[0m"
 
     C_STICKY_FOLDER = [
         # non focused list; non highlighted entry

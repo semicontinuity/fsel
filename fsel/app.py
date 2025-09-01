@@ -16,14 +16,14 @@ class FsApp:
 
 class AppSelectRecent(FsApp):
 
-    def run(self, recent_items):
+    def run(self, recent_items: list[Tuple[str, int, str|None]]):
         exit_code, items_path = run_dialog(
             lambda screen_height, screen_width, cursor_y, cursor_x:
             ItemSelectionDialog(screen_height, screen_width, 0, 0, cursor_y, recent_items)
         )
         if items_path is None:
             sys.exit(1)
-        return exit_code, full_path(self.root, item_model.item_text(items_path[0]))
+        return exit_code, full_path(self.root, item_model.item_file_name(items_path[0]))
 
 
 class AppSelectInPanes(FsApp):
@@ -47,7 +47,7 @@ class AppSelectInPanes(FsApp):
         return exit_code, self.full_path(items_path)
 
     def full_path(self, items_path):
-        return os.path.join(self.root, *[item_model.item_text(i) for i in items_path])
+        return os.path.join(self.root, *[item_model.item_file_name(i) for i in items_path])
 
 
 def find_root(folder: str, roots: Set[str]) -> Tuple[str, str]:
@@ -119,7 +119,7 @@ def main():
             recent[0], recent[1] = recent[1], recent[0]
 
         app = AppSelectRecent(root)
-        exit_code, path = app.run([(name, False) for name in recent])
+        exit_code, path = app.run([(name, False, None) for name in recent])
     else:
         app = AppSelectInPanes(displayed_root or root)
         exit_code, path = app.run(
