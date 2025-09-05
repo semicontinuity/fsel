@@ -66,18 +66,21 @@ class PaintContext:
         self.cur_x = new_x
 
     def clear_num_pos(self, length: int):
+        """ Clear the specified number of characters in the current line """
         x = self.cur_x
         new_x = x + length
 
+        # Only clear, if cur_y is within allowed Y range
         if self.min_y <= self.cur_y < self.max_y:
-            before = max(0, self.min_x - self.cur_x)
-            after = max(0, new_x - self.max_x)
-            to = length - after
-            if to > before:
-                if before > 0:
+            skip_before = max(0, self.min_x - self.cur_x)
+            skip_after = max(0, new_x - self.max_x)
+            limit_length = length - skip_after
+            fill_length = limit_length - skip_before
+            if fill_length > 0:
+                if skip_before > 0:
                     Screen.goto(self.min_x, self.cur_y)
-                Screen.wr("\x1b[%dX" % (to - before))
-            if to == before:
+                Screen.wr("\x1b[%dX" % fill_length)
+            if limit_length == skip_before:
                 Screen.goto(new_x, self.cur_y)
 
         self.cur_x = new_x
@@ -314,7 +317,7 @@ class CustomListBox(WListBox):
     def goto(x, y):
         p_ctx.goto(x, y)
 
-    def show_line(self, item, i):
+    def show_line(self, item: Tuple[str, int, str|None], i: int):
         """ item: line value; i: -1 for off-limit lines """
         if i == -1:
             self.attr_reset()
@@ -323,37 +326,37 @@ class CustomListBox(WListBox):
         else:
             self.show_real_line(item, i)
 
-    def show_real_line(self, item, i):
+    def show_real_line(self, item: Tuple[str, int, str|None], i):
         match_string = self.match_string_supplier()
         l = item_model.item_text(item)
         match_from = -1 if len(match_string) <= 0 else l.find(match_string)
-        match_to = match_from + len(match_string)
+        display_to = match_from + len(match_string)
         l = l[:self.width]
-        match_from = min(match_from, self.width)
-        match_to = min(match_to, self.width)
-        debug('show_real_line', width=self.width, l=l, match_from=match_from, match_to=match_to)
+        display_from = min(match_from, self.width)
+        display_to = min(display_to, self.width)
+        debug('show_real_line', width=self.width, l=l, display_from=display_from, display_to=display_to)
         palette = colors.palette(item_model.attrs(item), self.focus, self.cur_line == i)
 
-        if match_from != -1:
+        if display_from != -1:
             self.attr_reset()
             self.attr_italic(item_model.is_italic(item))
             self.attr_color(palette[Colors.C_IDX_REG_FG], palette[Colors.C_IDX_BG])
 
-            p_ctx.paint_string(l[:match_from])
+            p_ctx.paint_string(l[:display_from])
 
             # self.attr_reset()
             # self.attr_color(palette[Colors.C_IDX_MATCH_FG], palette[Colors.C_IDX_BG])
             self.attr_reversed()
             if not self.is_full_match_supplier():
                 self.attr_crossed_out()
-            p_ctx.paint_string(l[match_from: match_to])
+            p_ctx.paint_string(l[display_from: display_to])
             if not self.is_full_match_supplier():
                 self.attr_not_crossed_out()
             self.attr_not_reversed()
             # self.attr_reset()
 
             self.attr_color(palette[Colors.C_IDX_REG_FG], palette[Colors.C_IDX_BG])
-            p_ctx.paint_string(l[match_to:])
+            p_ctx.paint_string(l[display_to:])
         else:
             self.attr_reset()
             self.attr_italic(item_model.is_italic(item))
