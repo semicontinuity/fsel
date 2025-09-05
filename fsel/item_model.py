@@ -1,39 +1,41 @@
 from typing import Iterable
 
+from fsel.list_item import ListItem
+
 
 class ItemModel:
     FLAG_DIRECTORY = 0x8000
     FLAG_ITALIC = 0x10000
 
-    def attrs(self, item: tuple[str, int, str|None]):
-        return item[1]
+    def attrs(self, item: ListItem):
+        return item.attrs
 
-    def is_leaf(self, item: tuple[str, int, str|None]):
-        return (item[1] & ItemModel.FLAG_DIRECTORY) == 0
+    def is_leaf(self, item: ListItem):
+        return (item.attrs & ItemModel.FLAG_DIRECTORY) == 0
 
-    def is_italic(self, item: tuple[str, int, str|None]):
-        return (item[1] & ItemModel.FLAG_ITALIC) != 0
+    def is_italic(self, item: ListItem):
+        return (item.attrs & ItemModel.FLAG_ITALIC) != 0
 
     def max_item_text_length(self, items):
         return max(self.item_text_length(item) for item in items)
 
-    def item_text(self, item: tuple[str, int, str|None]) -> str:
-        if item[2] is not None:
-            return item[0] + ' ' + "\033[38;5;220m" + item[2] + "\033[0m"
+    def item_text(self, item: ListItem) -> str:
+        if item.description is not None:
+            return item.name + ' ' + "\033[38;5;220m" + item.description + "\033[0m"
         else:
-            return item[0]
+            return item.name
 
     # TODO: later, text is cut to this length - but it includes ANSI escapes, so only part of text is visible
-    def item_text_length(self, item: tuple[str, int, str|None]) -> int:
-        if item[2] is not None:
-            return len(item[0]) + len(' ') + len(item[2])
+    def item_text_length(self, item: ListItem) -> int:
+        if item.description is not None:
+            return len(item.name) + len(' ') + len(item.description)
         else:
-            return len(item[0])
+            return len(item.name)
 
-    def item_file_name(self, item: tuple[str, int, str|None]) -> str:
-        return item[0]
+    def item_file_name(self, item: ListItem) -> str:
+        return item.name
 
-    def index_of_item_file_name(self, file_name: str, items: Iterable[tuple[str, int, str | None]]) -> int|None:
+    def index_of_item_file_name(self, file_name: str, items: Iterable[ListItem]) -> int|None:
         for i, item in enumerate(items):
             if file_name == self.item_file_name(item):
                 return i

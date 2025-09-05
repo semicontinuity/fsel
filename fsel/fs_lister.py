@@ -1,7 +1,9 @@
 import os
 import sys
 
-from typing import List, AnyStr, Tuple, Sequence
+from typing import List, AnyStr, Sequence
+
+from fsel.list_item import ListItem
 
 from fsel.item_model import ItemModel
 
@@ -13,11 +15,11 @@ class FsListFiles:
         self.executables = executables
         self.dot_files = dot_files
 
-    def __call__(self, p: Sequence[str]) -> Sequence[Tuple[str, int, str|None]]:
+    def __call__(self, p: Sequence[str]) -> Sequence[ListItem]:
         """ Each item is a tuple; last element of tuple is int with item attributes (same as in st_mode) """
         return self.list_folders(p) + self.list_files(p)
 
-    def list_folders(self, path: Sequence[str]) -> List[Tuple[str, int, str|None]]:
+    def list_folders(self, path: Sequence[str]) -> List[ListItem]:
         full_fs_path = os.path.join(self.root, *path)
         if full_fs_path == '':
             sys.exit(1)
@@ -29,13 +31,13 @@ class FsListFiles:
                     st_mode = entry.stat().st_mode
                     description = self.get_description(os.path.join(full_fs_path, entry.name))
                     result.append(
-                        (
-                            entry.name,
-                            (st_mode | ItemModel.FLAG_DIRECTORY) | (ItemModel.FLAG_ITALIC if entry.is_symlink() else 0),
-                            description,
+                        ListItem(
+                            name=entry.name,
+                            attrs=(st_mode | ItemModel.FLAG_DIRECTORY) | (ItemModel.FLAG_ITALIC if entry.is_symlink() else 0),
+                            description=description,
                         )
                     )
-            return sorted(result, key=lambda e: e[0])
+            return sorted(result, key=lambda e: e.name)
         except PermissionError:
             return []
 
@@ -46,13 +48,13 @@ class FsListFiles:
         except (OSError, AttributeError):
             return None
 
-    def list_files(self, p: Sequence[str]) -> List[Tuple[str, int, str|None]]:
+    def list_files(self, p: Sequence[str]) -> List[ListItem]:
         if not self.select_files:
             return []
         full_fs_path = os.path.join(self.root, *p)
         try:
             name: List[str] = os.listdir(full_fs_path)
-            return [(entry, 0, None) for entry in sorted(name) if self.is_suitable_file(full_fs_path, entry)]
+            return [ListItem(name=entry, attrs=0, description=None) for entry in sorted(name) if self.is_suitable_file(full_fs_path, entry)]
         except PermissionError:
             return []
 

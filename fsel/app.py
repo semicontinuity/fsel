@@ -1,6 +1,8 @@
 import os
 import sys
-from typing import Tuple, Set, Dict
+from typing import Set, Dict
+
+from fsel.list_item import ListItem
 
 from fsel.all_settings_folder import AllSettingsFolder
 from fsel.fs_lister import FsListFiles
@@ -20,7 +22,7 @@ class FsApp:
 
 class AppSelectRecent(FsApp):
 
-    def run(self, recent_items: list[Tuple[str, int, str | None]]):
+    def run(self, recent_items: list[ListItem]):
         exit_code, items_path = run_dialog(
             lambda screen_height, screen_width, cursor_y, cursor_x:
             ItemSelectionDialog(screen_height, screen_width, 0, 0, cursor_y, recent_items)
@@ -54,7 +56,7 @@ class AppSelectInPanes(FsApp):
         return os.path.join(self.root, *[item_model.item_file_name(i) for i in items_path])
 
 
-def find_root(folder: str, roots: Set[str]) -> Tuple[str, str]:
+def find_root(folder: str, roots: Set[str]) -> tuple[str, str]:
     root_candidate = folder if not folder.endswith('/') else folder[:len(folder) - 1]
 
     while True:
@@ -123,7 +125,7 @@ def main():
             recent[0], recent[1] = recent[1], recent[0]
 
         app = AppSelectRecent(root)
-        exit_code, path = app.run([(name, False, None) for name in recent])
+        exit_code, path = app.run([ListItem(name=name, attrs=0, description=None) for name in recent])
     else:
         app = AppSelectInPanes(displayed_root or root)
         exit_code, path = app.run(

@@ -1,4 +1,6 @@
-from typing import Optional, List, Dict, AnyStr, Tuple, Callable, Sequence
+from typing import Optional, List, Dict, AnyStr, Callable, Sequence
+
+from fsel.list_item import ListItem
 
 from picotui.widgets import WListBox, Dialog, ACTION_CANCEL, ACTION_OK
 
@@ -30,7 +32,7 @@ class Oracle:
 
 
 class CustomListBox(WListBox):
-    def __init__(self, w, h, items: Sequence[Tuple[str, int, str|None]], folder=None, search_string_supplier=lambda: '', is_full_match_supplier=lambda: True):
+    def __init__(self, w, h, items: Sequence[ListItem], folder=None, search_string_supplier=lambda: '', is_full_match_supplier=lambda: True):
         super().__init__(w, h, items)
         self.folder = folder
         self.match_string_supplier = search_string_supplier
@@ -53,7 +55,7 @@ class CustomListBox(WListBox):
     def goto(x, y):
         p_ctx.goto(x, y)
 
-    def show_line(self, item: Tuple[str, int, str|None], i: int):
+    def show_line(self, item: ListItem, i: int):
         """ item: line value; i: -1 for off-limit lines """
         if i == -1:
             self.attr_reset()
@@ -62,7 +64,7 @@ class CustomListBox(WListBox):
         else:
             self.show_real_line(item, i)
 
-    def show_real_line(self, item: Tuple[str, int, str|None], i):
+    def show_real_line(self, item: ListItem, i):
         match_string = self.match_string_supplier()
         l = item_model.item_text(item)
         match_from = -1 if len(match_string) <= 0 else l.find(match_string)
@@ -186,12 +188,12 @@ class CustomListBox(WListBox):
 
 
 class ListBoxes:
-    entry_lister: Callable[[Sequence[str]], Sequence[Tuple[str, int, str|None]]]
+    entry_lister: Callable[[Sequence[str]], Sequence[ListItem]]
     boxes: List[CustomListBox]
     search_string: str = ''
     match_string: str = ''
 
-    def __init__(self, entry_lister: Callable[[Sequence[str]], Sequence[Tuple[str, int, str|None]]], oracle: Oracle, initial_path: List):
+    def __init__(self, entry_lister: Callable[[Sequence[str]], Sequence[ListItem]], oracle: Oracle, initial_path: List):
         debug('ListBoxes', initial_path=initial_path)
         self.entry_lister = entry_lister
         self.oracle = oracle
@@ -295,7 +297,7 @@ class ListBoxes:
             return None
         return self.make_box(path, items, preferred)
 
-    def make_box(self, path: Sequence[str], items: Sequence[Tuple[str, int, str|None]], preferred: Optional[str] = None):
+    def make_box(self, path: Sequence[str], items: Sequence[ListItem], preferred: Optional[str] = None):
         # debug("make_box", items=items, items_length=len(items), path=path)
         box = CustomListBox(
             item_model.max_item_text_length(items),
