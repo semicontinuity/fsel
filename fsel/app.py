@@ -2,9 +2,13 @@ import os
 import sys
 from typing import Tuple, Set, Dict
 
+from fsel.all_settings_folder import AllSettingsFolder
+from fsel.fs_lister import FsListFiles
+from fsel.item_selection_dialog import ItemSelectionDialog
 from fsel.logging import debug
-from fsel.sdk import FsListFiles, run_dialog, ItemSelectionDialog, full_path, item_model, field_or_else, \
-    ListBoxes, SelectPathDialog, PathOracle, AllSettingsFolder
+from fsel.path_oracle import PathOracle
+from fsel.sdk import run_dialog, full_path, item_model, field_or_else, ListBoxes
+from fsel.select_path_dialog import SelectPathDialog
 
 RECENT_COUNT = 10
 
@@ -16,7 +20,7 @@ class FsApp:
 
 class AppSelectRecent(FsApp):
 
-    def run(self, recent_items: list[Tuple[str, int, str|None]]):
+    def run(self, recent_items: list[Tuple[str, int, str | None]]):
         exit_code, items_path = run_dialog(
             lambda screen_height, screen_width, cursor_y, cursor_x:
             ItemSelectionDialog(screen_height, screen_width, 0, 0, cursor_y, recent_items)

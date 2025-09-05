@@ -1,0 +1,66 @@
+import os
+import sys
+
+from typing import List, AnyStr, Tuple, Sequence
+
+from fsel.item_model import ItemModel
+
+
+class FsListFiles:
+    def __init__(self, root: AnyStr, select_files: bool, executables: bool, dot_files):
+        self.root = root
+        self.select_files = select_files
+        self.executables = executables
+        self.dot_files = dot_files
+
+    def __call__(self, p: Sequence[str]) -> Sequence[Tuple[str, int, str|None]]:
+        """ Each item is a tuple; last element of tuple is int with item attributes (same as in st_mode) """
+        return self.list_folders(p) + self.list_files(p)
+
+    def list_folders(self, path: Sequence[str]) -> List[Tuple[str, int, str|None]]:
+        full_fs_path = os.path.join(self.root, *path)
+        if full_fs_path == '':
+            sys.exit(1)
+        try:
+            result = []
+            # see DirEntry
+            for entry in os.scandir(full_fs_path):
+                if entry.is_dir() and not entry.name.startswith('.'):
+                    st_mode = entry.stat().st_mode
+                    description = self.get_description(os.path.join(full_fs_path, entry.name))
+                    result.append(
+                        (
+                            entry.name,
+                            (st_mode | ItemModel.FLAG_DIRECTORY) | (ItemModel.FLAG_ITALIC if entry.is_symlink() else 0),
+                            description,
+                        )
+                    )
+            return sorted(result, key=lambda e: e[0])
+        except PermissionError:
+            return []
+
+    def get_description(aself, path: str):
+        """Get the description from the 'user.description' extended attribute"""
+        try:
+            return os.getxattr(path, 'user.description').decode('utf-8')
+        except (OSError, AttributeError):
+            return None
+
+    def list_files(self, p: Sequence[str]) -> List[Tuple[str, int, str|None]]:
+        if not self.select_files:
+            return []
+        full_fs_path = os.path.join(self.root, *p)
+        try:
+            name: List[str] = os.listdir(full_fs_path)
+            return [(entry, 0, None) for entry in sorted(name) if self.is_suitable_file(full_fs_path, entry)]
+        except PermissionError:
+            return []
+
+    def is_suitable_file(self, folder, name):
+        return (self.dot_files or not name.startswith('.')) and self.is_suitable_file_path(folder + '/' + name)
+
+    def is_suitable_file_path(self, path):
+        is_file = os.path.isfile(path)
+        if not is_file: return False
+        if self.executables: return os.access(path, os.X_OK)
+        return True

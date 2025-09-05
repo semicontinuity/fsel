@@ -1,0 +1,12 @@
+KEY_ALT_UP = b'\x1b[1;3A'
+KEY_ALT_DOWN = b'\x1b[1;3B'
+KEY_ALT_PAGE_UP = b'\x1b[5;3~'
+KEY_ALT_PAGE_DOWN = b'\x1b[6;3~'
+
+KEY_ALT_RIGHT = b'\x1b[1;3C'
+KEY_ALT_LEFT = b'\x1b[1;3D'
+KEY_CTRL_RIGHT = b'\x1b[1;5C'
+KEY_CTRL_LEFT = b'\x1b[1;5D'
+
+KEY_CTRL_HOME = b'\x1b[1;5H'
+KEY_CTRL_END = b'\x1b[1;5F'

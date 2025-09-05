@@ -1,0 +1,26 @@
+from picotui.basewidget import ACTION_CANCEL, ACTION_OK
+from picotui.defs import KEY_QUIT, KEY_ESC, KEY_ENTER
+
+from fsel.sdk import AbstractSelectionDialog, CustomListBox, item_model
+
+
+class ItemSelectionDialog(AbstractSelectionDialog):
+    def __init__(self, screen_height, width, height, x, y, items):
+        super().__init__(screen_height, 0, 0, width, height)
+        self.x = x
+        self.y = y
+        self.request_height(len(items))
+        self.add(0, 0, CustomListBox(item_model.max_item_text_length(items), len(items), items))
+
+    def handle_key(self, key):
+        if key == KEY_QUIT:
+            return KEY_QUIT
+        if key == KEY_ESC and self.finish_on_esc:
+            return ACTION_CANCEL
+        elif self.focus_w:
+            if key == KEY_ENTER:
+                return ACTION_OK
+            return self.focus_w.handle_key(key)
+
+    def items_path(self):
+        return [self.focus_w.items[self.focus_w.cur_line]]
