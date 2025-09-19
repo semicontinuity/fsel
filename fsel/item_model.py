@@ -1,6 +1,8 @@
 from typing import Iterable
 
+from fsel.colors import Colors
 from fsel.list_item import ListItem
+from fsel.rich_text import Style
 
 
 class ItemModel:
@@ -25,6 +27,16 @@ class ItemModel:
 
     def item_text(self, item: ListItem) -> str:
         if item.description is not None:
+            return item.name + ' ' + "\033[38;5;220m" + item.description + "\033[0m"
+        else:
+            return item.name
+
+    def item_rich_text(self, item: ListItem) -> str:
+        rich_text = [(item.name, Style())]
+
+        if item.description is not None:
+            rich_text.append((' ', Style()))
+            rich_text.append((item.description, Style(fg=Colors.YELLOW)))
             return item.name + ' ' + "\033[38;5;220m" + item.description + "\033[0m"
         else:
             return item.name

@@ -79,7 +79,7 @@ class CustomListBox(WListBox):
             self.attr_reset()
             self.attr_italic(item_model.is_italic(item))
             self.attr_strike_thru(item_model.is_strike_thru(item))
-            self.attr_color(_palette[Colors.C_IDX_REG_FG], _palette[Colors.C_IDX_BG])
+            self.attr_color(fg=_palette[Colors.C_IDX_REG_FG], bg=_palette[Colors.C_IDX_BG])
 
             p_ctx.paint_string(l[:display_from])
 

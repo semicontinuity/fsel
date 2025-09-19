@@ -12,7 +12,7 @@ class Colors:
     B_RED = 196
     GRAY = 248
     CYAN = 31
-    YELLOW = 220  # Yellow color for descriptions
+    YELLOW = 220
 
     C_IDX_BG = 0
     C_IDX_REG_FG = 1

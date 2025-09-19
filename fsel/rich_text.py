@@ -1,17 +1,19 @@
+# This copy is more up-to-date
+
 from dataclasses import dataclass
-from typing import Optional, Sequence, Tuple, AnyStr, List
+from typing import Sequence, Tuple, AnyStr, List
 
 from datatools.tui.ansi_str import ANSI_CMD_DEFAULT_FG, ANSI_CMD_ATTR_NOT_BOLD, ANSI_CMD_ATTR_BOLD, ANSI_CMD_DEFAULT_BG, \
     ANSI_CMD_ATTR_NOT_ITALIC, ANSI_CMD_ATTR_ITALIC, ANSI_CMD_ATTR_UNDERLINED, ANSI_CMD_ATTR_NOT_UNDERLINED
 from datatools.tui.buffer.abstract_buffer_writer import AbstractBufferWriter
-from datatools.tui.terminal import ansi_foreground_escape_code, ansi_background_escape_code
+from datatools.tui.terminal import ansi_foreground_escape_code_auto, ansi_background_escape_code_auto
 
 
 @dataclass
 class Style:
     attr: int = 0
-    fg: Optional[Sequence[int]] = None
-    bg: Optional[Sequence[int]] = None
+    fg: int | Sequence[int] | None = None
+    bg: int | Sequence[int] | None = None
 
     def with_attr(self, attr: int):
         self.attr = attr
@@ -40,9 +42,9 @@ def render_substr(spans: List[Tuple[AnyStr, Style]], start: int, end: int) -> An
 def render_styled(style: Style, text: AnyStr) -> AnyStr:
     result = text
     if style.fg is not None:
-        result = ansi_foreground_escape_code(*style.fg) + result + ANSI_CMD_DEFAULT_FG
+        result = ansi_foreground_escape_code_auto(style.fg) + result + ANSI_CMD_DEFAULT_FG
     if style.bg is not None:
-        result = ansi_background_escape_code(*style.bg) + result + ANSI_CMD_DEFAULT_BG
+        result = ansi_background_escape_code_auto(style.bg) + result + ANSI_CMD_DEFAULT_BG
     if style.attr & AbstractBufferWriter.MASK_BOLD != 0:
         result = ANSI_CMD_ATTR_BOLD + result + ANSI_CMD_ATTR_NOT_BOLD
     if style.attr & AbstractBufferWriter.MASK_ITALIC != 0:
