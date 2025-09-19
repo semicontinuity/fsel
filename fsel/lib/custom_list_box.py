@@ -11,7 +11,7 @@ from .list_item import ListItem
 from .logging import debug
 from .paint_context import p_ctx
 from .palette import palette
-from .rich_text import Style, RichText
+from .rich_text import Style, RichText, rich_text_length, rich_text_to_plain
 
 
 class CustomListBox(WListBox):
@@ -93,56 +93,101 @@ class CustomListBox(WListBox):
         self.attr_reset()
 
     def show_real_line2(self, item: ListItem, i):
-        """Alternative implementation of show_real_line using RichText and render_substr"""
-        match_string = self.match_string_supplier()
-        l = item_model.item_text(item)
-        match_from = -1 if len(match_string) <= 0 else l.find(match_string)
-        display_to = match_from + len(match_string)
-        l = l[:self.width]
-        display_from = min(match_from, self.width)
-        display_to = min(display_to, self.width)
-        debug('show_real_line2', width=self.width, l=l, display_from=display_from, display_to=display_to)
+        """Alternative implementation of show_real_line using RichText"""
+        # Get the rich text representation of the item
+        rich_text = item_model.item_rich_text(item)
+        
+        # Get palette for this item
         _palette = palette(item_model.attrs(item), self.focus, self.cur_line == i)
-
-        # Create base style for regular text
+        
+        # Create base style attributes
         base_attr = 0
         if item_model.is_italic(item):
             base_attr |= AbstractBufferWriter.MASK_ITALIC
-
-        base_style = Style(
-            attr=base_attr,
-            fg=_palette[Colors.C_IDX_REG_FG],
-            bg=_palette[Colors.C_IDX_BG]
-        )
-
-        # Construct RichText object
-        rich_text: RichText = []
-
-        if display_from != -1:
-            # Text before match
-            if display_from > 0:
-                rich_text.append((l[:display_from], base_style))
-
-            # Matched text
-            match_style = base_style
-            full_match = self.is_full_match_supplier()
-            if not full_match:
-                match_style = match_style.with_attr_flag(AbstractBufferWriter.MASK_CROSSED_OUT)
-
-            rich_text.append((l[display_from:display_to], match_style))
-
-            # Text after match
-            if display_to < len(l):
-                rich_text.append((l[display_to:], base_style))
-        else:
-            # No match, just regular text
-            rich_text.append((l, base_style))
-
+            
+        # Apply palette colors and attributes to each span in the rich text
+        styled_rich_text: RichText = []
+        for text, style in rich_text:
+            # Create a new style that combines the original style with our palette colors
+            new_style = Style(
+                attr=style.attr | base_attr,
+                fg=style.fg if style.fg is not None else _palette[Colors.C_IDX_REG_FG],
+                bg=style.bg if style.bg is not None else _palette[Colors.C_IDX_BG]
+            )
+            styled_rich_text.append((text, new_style))
+        
+        # Handle search highlighting if needed
+        match_string = self.match_string_supplier()
+        if match_string and len(match_string) > 0:
+            # Convert rich text to plain text for searching
+            plain_text = rich_text_to_plain(styled_rich_text)
+            
+            # Find match in plain text
+            match_from = plain_text.find(match_string)
+            if match_from >= 0:
+                match_to = match_from + len(match_string)
+                
+                # Limit to width if needed
+                plain_text = plain_text[:self.width]
+                match_from = min(match_from, self.width)
+                match_to = min(match_to, self.width)
+                
+                debug('show_real_line2', width=self.width, plain_text=plain_text, 
+                      match_from=match_from, match_to=match_to)
+                
+                # Create a new rich text with highlighting for the match
+                highlighted_rich_text: RichText = []
+                current_pos = 0
+                
+                for text, style in styled_rich_text:
+                    text_start = current_pos
+                    text_end = text_start + len(text)
+                    
+                    # Check if this span overlaps with the match
+                    if text_end > match_from and text_start < match_to:
+                        # Calculate the overlap
+                        overlap_start = max(text_start, match_from) - text_start
+                        overlap_end = min(text_end, match_to) - text_start
+                        
+                        # Add text before match if any
+                        if overlap_start > 0:
+                            highlighted_rich_text.append((text[:overlap_start], style))
+                        
+                        # Add matched text with reversed style
+                        match_text = text[overlap_start:overlap_end]
+                        match_style = Style(
+                            attr=style.attr | AbstractBufferWriter.MASK_BG_EMPHASIZED,
+                            fg=style.fg if style.fg is not None else _palette[Colors.C_IDX_REG_FG],
+                            bg=style.bg if style.bg is not None else _palette[Colors.C_IDX_BG]
+                        )
+                        
+                        # Add crossed out attribute if not a full match
+                        full_match = self.is_full_match_supplier()
+                        if not full_match:
+                            match_style = match_style.with_attr_flag(AbstractBufferWriter.MASK_CROSSED_OUT)
+                        
+                        highlighted_rich_text.append((match_text, match_style))
+                        
+                        # Add text after match if any
+                        if overlap_end < len(text):
+                            highlighted_rich_text.append((text[overlap_end:], style))
+                    else:
+                        # This span doesn't overlap with the match
+                        highlighted_rich_text.append((text, style))
+                    
+                    current_pos = text_end
+                
+                # Use the highlighted rich text
+                styled_rich_text = highlighted_rich_text
+        
         # Render the RichText
-        result = p_ctx.paint_rich_text(rich_text, 0, len(l))
-        p_ctx.paint_text(result)
-
-        p_ctx.clear_num_pos(self.width - len(l))
+        p_ctx.paint_rich_text(styled_rich_text)
+        
+        # Calculate total visible length of the rich text
+        visible_length = rich_text_length(styled_rich_text)
+        
+        # Clear the rest of the line
+        p_ctx.clear_num_pos(self.width - visible_length)
         self.attr_reset()
 
     def handle_cursor_keys(self, key):

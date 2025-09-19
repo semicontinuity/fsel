@@ -2,7 +2,8 @@ import sys
 from typing import AnyStr
 
 from datatools.tui.ansi_str import ANSI_CMD_DEFAULT_FG, ANSI_CMD_ATTR_NOT_BOLD, ANSI_CMD_ATTR_BOLD, ANSI_CMD_DEFAULT_BG, \
-    ANSI_CMD_ATTR_NOT_ITALIC, ANSI_CMD_ATTR_ITALIC, ANSI_CMD_ATTR_UNDERLINED, ANSI_CMD_ATTR_NOT_UNDERLINED
+    ANSI_CMD_ATTR_NOT_ITALIC, ANSI_CMD_ATTR_ITALIC, ANSI_CMD_ATTR_UNDERLINED, ANSI_CMD_ATTR_NOT_UNDERLINED, \
+    ANSI_CMD_ATTR_CROSSED_OUT, ANSI_CMD_ATTR_NOT_CROSSED_OUT
 from datatools.tui.buffer.abstract_buffer_writer import AbstractBufferWriter
 from datatools.tui.terminal import ansi_foreground_escape_code_auto, ansi_background_escape_code_auto
 from picotui.screen import Screen
@@ -71,23 +72,44 @@ class PaintContext:
 
         self.cur_x = new_x
 
-    def paint_rich_text(self, rich_text: RichText, start: int, end: int) -> AnyStr:
-        result = ''
-        span_start = 0
-
-        for span in rich_text:
-            span_end = span_start + len(span[0])
-            if span_end > start:
-                if end <= span_start:
-                    break
-
-                from_x = max(start, span_start)
-                to_x = min(end, span_start + len(span[0]))
-                text = span[0][from_x - span_start:to_x - span_start]
-                result += self.paint_rich_text_span(span[1], text)
-            span_start = span_end
-
-        return result + ' ' * (end - max(start, span_start))
+    def paint_rich_text(self, rich_text: RichText):
+        """Paint rich text from current position with clipping"""
+        if self.min_y <= self.cur_y < self.max_y:
+            x = self.cur_x
+            
+            for span in rich_text:
+                text = span[0]
+                style = span[1]
+                
+                # Calculate visible portion of text with clipping
+                text_length = len(text)
+                new_x = x + text_length
+                
+                before = max(0, self.min_x - x)
+                after = max(0, new_x - self.max_x)
+                to = text_length - after
+                
+                if to > before:
+                    # Apply clipping to text content first
+                    clipped_text = text[before:to]
+                    
+                    # Format the clipped text with style
+                    formatted_text = self.paint_rich_text_span(style, clipped_text)
+                    
+                    # Position cursor and write formatted text
+                    if before > 0:
+                        Screen.goto(self.min_x, self.cur_y)
+                    else:
+                        Screen.goto(x, self.cur_y)
+                    
+                    Screen.wr(formatted_text)
+                
+                x = new_x
+            
+            self.cur_x = x
+        else:
+            # If outside vertical bounds, just update cursor position
+            self.cur_x += sum(len(span[0]) for span in rich_text)
 
     def paint_rich_text_span(self, style: Style, text: AnyStr) -> AnyStr:
         result = text
@@ -101,6 +123,8 @@ class PaintContext:
             result = ANSI_CMD_ATTR_ITALIC + result + ANSI_CMD_ATTR_NOT_ITALIC
         if style.attr & AbstractBufferWriter.MASK_UNDERLINED != 0:
             result = ANSI_CMD_ATTR_UNDERLINED + result + ANSI_CMD_ATTR_NOT_UNDERLINED
+        if style.attr & AbstractBufferWriter.MASK_CROSSED_OUT != 0:
+            result = ANSI_CMD_ATTR_CROSSED_OUT + result + ANSI_CMD_ATTR_NOT_CROSSED_OUT
         return result
 
 
