@@ -1,4 +1,4 @@
-from typing import Iterable
+from typing import Iterable, Tuple
 
 from fsel.colors import Colors
 from fsel.list_item import ListItem
@@ -31,15 +31,14 @@ class ItemModel:
         else:
             return item.name
 
-    def item_rich_text(self, item: ListItem) -> str:
+    def item_rich_text(self, item: ListItem) -> list[Tuple[str, Style]]:
         rich_text = [(item.name, Style())]
 
         if item.description is not None:
             rich_text.append((' ', Style()))
             rich_text.append((item.description, Style(fg=Colors.YELLOW)))
-            return item.name + ' ' + "\033[38;5;220m" + item.description + "\033[0m"
-        else:
-            return item.name
+
+        return rich_text
 
     # TODO: later, text is cut to this length - but it includes ANSI escapes, so only part of text is visible
     def item_text_length(self, item: ListItem) -> int:

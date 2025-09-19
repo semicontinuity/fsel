@@ -1,5 +1,5 @@
 import sys
-from setuptools import setup
+from setuptools import setup, find_packages
 
 
 if sys.version_info < (3, 0):
@@ -15,4 +15,5 @@ setup(name='fsel',
       author='Semicontinuity',
       license='MIT',
       install_requires=['picotui'],
-      packages=['fsel'])
+      packages=['fsel', 'fsel.lib'],
+)

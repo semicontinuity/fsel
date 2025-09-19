@@ -1,20 +1,24 @@
 from typing import Optional, List, Dict, AnyStr, Callable, Sequence
 
-from fsel.list_item import ListItem
-
+from datatools.tui.buffer.abstract_buffer_writer import AbstractBufferWriter
 from picotui.widgets import WListBox, Dialog, ACTION_CANCEL, ACTION_OK
 
+from fsel.list_item import ListItem
+from fsel.rich_text import Style, RichText, render_substr
 from .colors import Colors
 from .exit_codes import EXIT_CODE_ENTER, EXIT_CODE_ESCAPE
 from .exit_codes_mapping import KEYS_TO_EXIT_CODES
 from .item_model import item_model
 from .logging import debug
-from .paint_context import PaintContext
+from fsel.lib.paint_context import PaintContext
 from .palette import palette
 from .picotui_patch import patch_picotui
 
 patch_picotui()
 from fsel.picotui_patch import *
+
+from fsel.lib.ansi import attr_italic, attr_strike_thru, attr_reversed, attr_crossed_out, attr_not_crossed_out, \
+    attr_not_reversed, attr_color
 
 screen = Screen()
 p_ctx = PaintContext()
@@ -77,32 +81,88 @@ class CustomListBox(WListBox):
 
         if display_from != -1:
             self.attr_reset()
-            self.attr_italic(item_model.is_italic(item))
-            self.attr_strike_thru(item_model.is_strike_thru(item))
-            self.attr_color(fg=_palette[Colors.C_IDX_REG_FG], bg=_palette[Colors.C_IDX_BG])
+            attr_italic(item_model.is_italic(item))
+            attr_strike_thru(item_model.is_strike_thru(item))
+            attr_color(fg=_palette[Colors.C_IDX_REG_FG], bg=_palette[Colors.C_IDX_BG])
 
             p_ctx.paint_string(l[:display_from])
 
-            # self.attr_reset()
-            # self.attr_color(palette[Colors.C_IDX_MATCH_FG], palette[Colors.C_IDX_BG])
-            self.attr_reversed()
+            attr_reversed()
             if not self.is_full_match_supplier():
-                self.attr_crossed_out()
+                attr_crossed_out()
             p_ctx.paint_string(l[display_from: display_to])
             if not self.is_full_match_supplier():
-                self.attr_not_crossed_out()
-            self.attr_not_reversed()
-            # self.attr_reset()
+                attr_not_crossed_out()
+            attr_not_reversed()
 
-            self.attr_color(_palette[Colors.C_IDX_REG_FG], _palette[Colors.C_IDX_BG])
+            attr_color(_palette[Colors.C_IDX_REG_FG], _palette[Colors.C_IDX_BG])
             p_ctx.paint_string(l[display_to:])
         else:
             self.attr_reset()
-            self.attr_italic(item_model.is_italic(item))
-            self.attr_strike_thru(item_model.is_strike_thru(item))
-            self.attr_color(_palette[Colors.C_IDX_REG_FG], _palette[Colors.C_IDX_BG])
+            attr_italic(item_model.is_italic(item))
+            attr_strike_thru(item_model.is_strike_thru(item))
+            attr_color(_palette[Colors.C_IDX_REG_FG], _palette[Colors.C_IDX_BG])
             p_ctx.paint_string(l)
 
+        p_ctx.clear_num_pos(self.width - len(l))
+        self.attr_reset()
+        
+    def show_real_line2(self, item: ListItem, i):
+        """Alternative implementation of show_real_line using RichText and render_substr"""
+        match_string = self.match_string_supplier()
+        l = item_model.item_text(item)
+        match_from = -1 if len(match_string) <= 0 else l.find(match_string)
+        display_to = match_from + len(match_string)
+        l = l[:self.width]
+        display_from = min(match_from, self.width)
+        display_to = min(display_to, self.width)
+        debug('show_real_line2', width=self.width, l=l, display_from=display_from, display_to=display_to)
+        _palette = palette(item_model.attrs(item), self.focus, self.cur_line == i)
+        
+        # Create base style for regular text
+        base_attr = 0
+        if item_model.is_italic(item):
+            base_attr |= AbstractBufferWriter.MASK_ITALIC
+
+        base_style = Style(
+            attr=base_attr,
+            fg=_palette[Colors.C_IDX_REG_FG],
+            bg=_palette[Colors.C_IDX_BG]
+        )
+        
+        # Create style for matched text
+        match_attr = base_attr
+        if not self.is_full_match_supplier():
+            match_attr |= AbstractBufferWriter.MASK_CROSSED_OUT
+            
+        match_style = Style(
+            attr=match_attr,
+            fg=_palette[Colors.C_IDX_REG_FG],
+            bg=_palette[Colors.C_IDX_BG]
+        )
+        
+        # Construct RichText object
+        rich_text: RichText = []
+        
+        if display_from != -1:
+            # Text before match
+            if display_from > 0:
+                rich_text.append((l[:display_from], base_style))
+                
+            # Matched text
+            rich_text.append((l[display_from:display_to], match_style))
+            
+            # Text after match
+            if display_to < len(l):
+                rich_text.append((l[display_to:], base_style))
+        else:
+            # No match, just regular text
+            rich_text.append((l, base_style))
+        
+        # Render the RichText
+        result = render_substr(rich_text, 0, len(l))
+        p_ctx.paint_string(result)
+        
         p_ctx.clear_num_pos(self.width - len(l))
         self.attr_reset()
 
@@ -111,64 +171,6 @@ class CustomListBox(WListBox):
         self.make_cur_line_visible()
         self.redraw()
         return result
-
-    @staticmethod
-    def attr_color(fg, bg=-1):
-        if bg == -1:
-            bg = fg >> 4
-            fg &= 0xf
-
-        if type(fg) is tuple:
-            r, g, b = fg
-            s = "\x1b[38;2;%d;%d;%d;" % (r, g, b)
-        else:
-            s = "\x1b[38;5;%d;" % (fg,)
-        if type(bg) is tuple:
-            r, g, b = bg
-            s += "48;2;%d;%d;%dm" % (r, g, b)
-        else:
-            s += "48;5;%dm" % (bg,)
-
-        Screen.wr(s)
-
-    @staticmethod
-    def attr_underlined(double: bool):
-        Screen.wr("\x1b[21m" if double else "\x1b[4m")
-
-    @staticmethod
-    def attr_not_underlined():
-        Screen.wr("\x1b[24m")
-
-    @staticmethod
-    def attr_italic(on: bool):
-        Screen.wr("\x1b[3m" if on else "\x1b[23m")
-    @staticmethod
-    def attr_strike_thru(on: bool):
-        Screen.wr("\x1b[9m" if on else "\x1b[29m")
-
-    @staticmethod
-    def attr_reversed():
-        Screen.wr("\x1b[7m")
-
-    @staticmethod
-    def attr_not_reversed():
-        Screen.wr("\x1b[27m")
-
-    @staticmethod
-    def attr_blinking():
-        Screen.wr("\x1b[5m")
-
-    @staticmethod
-    def attr_not_blinking():
-        Screen.wr("\x1b[25m")
-
-    @staticmethod
-    def attr_crossed_out():
-        Screen.wr("\x1b[9m")
-
-    @staticmethod
-    def attr_not_crossed_out():
-        Screen.wr("\x1b[29m")
 
     def search(self, s: str):
         content = []

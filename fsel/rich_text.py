@@ -1,7 +1,8 @@
 # This copy is more up-to-date
 
 from dataclasses import dataclass
-from typing import Sequence, Tuple, AnyStr, List
+from typing import Sequence, Tuple, AnyStr
+from typing import TypeAlias
 
 from datatools.tui.ansi_str import ANSI_CMD_DEFAULT_FG, ANSI_CMD_ATTR_NOT_BOLD, ANSI_CMD_ATTR_BOLD, ANSI_CMD_DEFAULT_BG, \
     ANSI_CMD_ATTR_NOT_ITALIC, ANSI_CMD_ATTR_ITALIC, ANSI_CMD_ATTR_UNDERLINED, ANSI_CMD_ATTR_NOT_UNDERLINED
@@ -20,7 +21,11 @@ class Style:
         return self
 
 
-def render_substr(spans: List[Tuple[AnyStr, Style]], start: int, end: int) -> AnyStr:
+RichTextSpan: TypeAlias = Tuple[AnyStr, Style]
+RichText: TypeAlias = list[RichTextSpan]
+
+
+def render_substr(spans: RichText, start: int, end: int) -> AnyStr:
     result = ''
     span_start = 0
 
