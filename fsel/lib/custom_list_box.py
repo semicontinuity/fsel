@@ -11,7 +11,7 @@ from .list_item import ListItem
 from .logging import debug
 from .paint_context import p_ctx
 from .palette import palette
-from .rich_text import Style, RichText, render_substr
+from .rich_text import Style, RichText
 
 
 class CustomListBox(WListBox):
@@ -65,24 +65,29 @@ class CustomListBox(WListBox):
             attr_strike_thru(item_model.is_strike_thru(item))
             attr_color(fg=_palette[Colors.C_IDX_REG_FG], bg=_palette[Colors.C_IDX_BG])
 
-            p_ctx.paint_string(l[:display_from])
+            p_ctx.paint_text(l[:display_from])
 
             attr_reversed()
-            if not self.is_full_match_supplier():
+            full_match = self.is_full_match_supplier()
+
+            if not full_match:
                 attr_crossed_out()
-            p_ctx.paint_string(l[display_from: display_to])
-            if not self.is_full_match_supplier():
+
+            p_ctx.paint_text(l[display_from: display_to])
+
+            if not full_match:
                 attr_not_crossed_out()
+
             attr_not_reversed()
 
             attr_color(_palette[Colors.C_IDX_REG_FG], _palette[Colors.C_IDX_BG])
-            p_ctx.paint_string(l[display_to:])
+            p_ctx.paint_text(l[display_to:])
         else:
             self.attr_reset()
             attr_italic(item_model.is_italic(item))
             attr_strike_thru(item_model.is_strike_thru(item))
             attr_color(_palette[Colors.C_IDX_REG_FG], _palette[Colors.C_IDX_BG])
-            p_ctx.paint_string(l)
+            p_ctx.paint_text(l)
 
         p_ctx.clear_num_pos(self.width - len(l))
         self.attr_reset()
@@ -110,17 +115,6 @@ class CustomListBox(WListBox):
             bg=_palette[Colors.C_IDX_BG]
         )
 
-        # Create style for matched text
-        match_attr = base_attr
-        if not self.is_full_match_supplier():
-            match_attr |= AbstractBufferWriter.MASK_CROSSED_OUT
-
-        match_style = Style(
-            attr=match_attr,
-            fg=_palette[Colors.C_IDX_REG_FG],
-            bg=_palette[Colors.C_IDX_BG]
-        )
-
         # Construct RichText object
         rich_text: RichText = []
 
@@ -130,6 +124,11 @@ class CustomListBox(WListBox):
                 rich_text.append((l[:display_from], base_style))
 
             # Matched text
+            match_style = base_style
+            full_match = self.is_full_match_supplier()
+            if not full_match:
+                match_style = match_style.with_attr_flag(AbstractBufferWriter.MASK_CROSSED_OUT)
+
             rich_text.append((l[display_from:display_to], match_style))
 
             # Text after match
@@ -140,8 +139,8 @@ class CustomListBox(WListBox):
             rich_text.append((l, base_style))
 
         # Render the RichText
-        result = render_substr(rich_text, 0, len(l))
-        p_ctx.paint_string(result)
+        result = p_ctx.paint_rich_text(rich_text, 0, len(l))
+        p_ctx.paint_text(result)
 
         p_ctx.clear_num_pos(self.width - len(l))
         self.attr_reset()

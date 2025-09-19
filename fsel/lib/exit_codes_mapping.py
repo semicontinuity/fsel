@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
 from picotui.defs import *
-from .picotui_keys import *
-from .exit_codes import *
+from fsel.lib.picotui_keys import *
+from fsel.exit_codes import *
 
 
 KEYS_TO_EXIT_CODES = {

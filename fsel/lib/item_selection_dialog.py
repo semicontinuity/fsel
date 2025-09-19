@@ -1,7 +1,9 @@
 from picotui.basewidget import ACTION_CANCEL, ACTION_OK
 from picotui.defs import KEY_QUIT, KEY_ESC, KEY_ENTER
 
-from fsel.sdk import AbstractSelectionDialog, CustomListBox, item_model
+from .abstract_selection_dialog import AbstractSelectionDialog
+from .custom_list_box import CustomListBox
+from .item_model import item_model
 
 
 class ItemSelectionDialog(AbstractSelectionDialog):

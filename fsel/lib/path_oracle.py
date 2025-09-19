@@ -1,6 +1,6 @@
-from typing import Optional, List, Dict, AnyStr, Tuple, Callable, Sequence, Set
+from typing import Optional, List, Dict, AnyStr, Sequence
 
-from fsel.sdk import Oracle
+from .oracle import Oracle
 
 
 class PathOracle(Oracle):

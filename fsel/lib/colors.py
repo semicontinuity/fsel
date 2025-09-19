@@ -1,4 +1,4 @@
-from fsel.picotui_patch import patch_picotui
+from fsel.lib.picotui_patch import patch_picotui
 
 patch_picotui()
 

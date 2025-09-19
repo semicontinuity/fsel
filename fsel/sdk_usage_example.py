@@ -2,9 +2,10 @@ import sys
 from typing import Sequence, Tuple
 
 from fsel.lib.item_model import ItemModel
-from fsel.path_oracle import PathOracle
-from fsel.sdk import run_dialog, ListBoxes
-from fsel.select_path_dialog import SelectPathDialog
+from fsel.lib.list_boxes import ListBoxes
+from fsel.lib.path_oracle import PathOracle
+from fsel.lib.select_path_dialog import SelectPathDialog
+from fsel.sdk import run_dialog
 
 if __name__ == "__main__":
     class Lister:

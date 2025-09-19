@@ -5,10 +5,13 @@ from picotui.defs import KEY_QUIT, KEY_ESC, KEY_SHIFT_TAB, KEY_ENTER, KEY_TAB, K
     KEY_UP, KEY_DOWN, KEY_PGUP, KEY_PGDN, KEY_DELETE, KEY_BACKSPACE
 from picotui.widgets import WListBox
 
-from fsel.sdk import AbstractSelectionDialog, ListBoxes, CustomListBox, item_model
+from .abstract_selection_dialog import AbstractSelectionDialog
+from .custom_list_box import CustomListBox
 from .exit_codes_mapping import KEYS_TO_EXIT_CODES
+from .item_model import item_model
 from .keys import KEY_ALT_UP, KEY_ALT_DOWN, KEY_ALT_PAGE_UP, KEY_ALT_PAGE_DOWN, KEY_ALT_RIGHT, KEY_ALT_LEFT
-from fsel.lib.logging import debug
+from .list_boxes import ListBoxes
+from .logging import debug
 from .picotui_keys import KEY_ALT_HOME
 
 
