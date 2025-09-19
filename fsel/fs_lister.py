@@ -3,9 +3,9 @@ import sys
 
 from typing import List, AnyStr, Sequence
 
-from fsel.list_item import ListItem
+from fsel.lib.list_item import ListItem
 
-from fsel.item_model import ItemModel
+from fsel.lib.item_model import ItemModel
 
 
 class FsListFiles:

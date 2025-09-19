@@ -1,7 +1,7 @@
 from stat import S_ISVTX, S_ISGID, S_ISUID
 
-from fsel.item_model import ItemModel
-from fsel.sdk import Colors
+from .colors import Colors
+from .item_model import ItemModel
 
 
 def palette(attrs: int, focused_list: bool, focused_entry: bool) -> list[int]:

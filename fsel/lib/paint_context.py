@@ -63,3 +63,6 @@ class PaintContext:
             self.goto(left, top)
             self.clear_num_pos(width)
             top += 1
+
+
+p_ctx = PaintContext()

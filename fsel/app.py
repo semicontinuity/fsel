@@ -2,12 +2,12 @@ import os
 import sys
 from typing import Set, Dict
 
-from fsel.list_item import ListItem
+from fsel.lib.list_item import ListItem
 
 from fsel.all_settings_folder import AllSettingsFolder
 from fsel.fs_lister import FsListFiles
 from fsel.item_selection_dialog import ItemSelectionDialog
-from fsel.logging import debug
+from fsel.lib.logging import debug
 from fsel.path_oracle import PathOracle
 from fsel.sdk import run_dialog, full_path, item_model, field_or_else, ListBoxes
 from fsel.select_path_dialog import SelectPathDialog

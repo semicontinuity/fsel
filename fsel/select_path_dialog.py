@@ -8,7 +8,7 @@ from picotui.widgets import WListBox
 from fsel.sdk import AbstractSelectionDialog, ListBoxes, CustomListBox, item_model
 from .exit_codes_mapping import KEYS_TO_EXIT_CODES
 from .keys import KEY_ALT_UP, KEY_ALT_DOWN, KEY_ALT_PAGE_UP, KEY_ALT_PAGE_DOWN, KEY_ALT_RIGHT, KEY_ALT_LEFT
-from .logging import debug
+from fsel.lib.logging import debug
 from .picotui_keys import KEY_ALT_HOME
 
 
