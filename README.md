@@ -69,3 +69,9 @@ It has the following format:
 }
 ```
 Add the roots of your projects to this file to keep navigation history for them.
+
+
+# Extended folder attributes
+
+* `user.description` - if set (`setfattr -n user.description -v "The description" .`), the description is displayed next to the folder name.
+* `user.deleted` - if set (`setfattr -n user.deleted -v "true" .`), the folder is displayed with strike-thru font.

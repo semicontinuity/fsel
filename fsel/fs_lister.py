@@ -29,11 +29,20 @@ class FsListFiles:
             for entry in os.scandir(full_fs_path):
                 if entry.is_dir() and not entry.name.startswith('.'):
                     st_mode = entry.stat().st_mode
-                    description = self.get_description(os.path.join(full_fs_path, entry.name))
+                    entry_path = os.path.join(full_fs_path, entry.name)
+                    description = self.get_description(entry_path)
+                    
+                    # Set flags based on attributes
+                    flags = st_mode | ItemModel.FLAG_DIRECTORY
+                    if entry.is_symlink():
+                        flags |= ItemModel.FLAG_ITALIC
+                    if self.is_deleted(entry_path):
+                        flags |= ItemModel.FLAG_STRIKE_THRU
+                        
                     result.append(
                         ListItem(
                             name=entry.name,
-                            attrs=(st_mode | ItemModel.FLAG_DIRECTORY) | (ItemModel.FLAG_ITALIC if entry.is_symlink() else 0),
+                            attrs=flags,
                             description=description,
                         )
                     )
@@ -41,12 +50,20 @@ class FsListFiles:
         except PermissionError:
             return []
 
-    def get_description(aself, path: str):
+    def get_description(self, path: str):
         """Get the description from the 'user.description' extended attribute"""
         try:
             return os.getxattr(path, 'user.description').decode('utf-8')
         except (OSError, AttributeError):
             return None
+            
+    def is_deleted(self, path: str):
+        """Check if the 'user.deleted' extended attribute exists"""
+        try:
+            os.getxattr(path, 'user.deleted')
+            return True
+        except (OSError, AttributeError):
+            return False
 
     def list_files(self, p: Sequence[str]) -> List[ListItem]:
         if not self.select_files:

@@ -6,6 +6,7 @@ from fsel.list_item import ListItem
 class ItemModel:
     FLAG_DIRECTORY = 0x8000
     FLAG_ITALIC = 0x10000
+    FLAG_STRIKE_THRU = 0x20000
 
     def attrs(self, item: ListItem):
         return item.attrs
@@ -15,6 +16,9 @@ class ItemModel:
 
     def is_italic(self, item: ListItem):
         return (item.attrs & ItemModel.FLAG_ITALIC) != 0
+
+    def is_strike_thru(self, item: ListItem):
+        return (item.attrs & ItemModel.FLAG_STRIKE_THRU) != 0
 
     def max_item_text_length(self, items):
         return max(self.item_text_length(item) for item in items)

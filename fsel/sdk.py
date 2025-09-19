@@ -78,6 +78,7 @@ class CustomListBox(WListBox):
         if display_from != -1:
             self.attr_reset()
             self.attr_italic(item_model.is_italic(item))
+            self.attr_strike_thru(item_model.is_strike_thru(item))
             self.attr_color(_palette[Colors.C_IDX_REG_FG], _palette[Colors.C_IDX_BG])
 
             p_ctx.paint_string(l[:display_from])
@@ -98,6 +99,7 @@ class CustomListBox(WListBox):
         else:
             self.attr_reset()
             self.attr_italic(item_model.is_italic(item))
+            self.attr_strike_thru(item_model.is_strike_thru(item))
             self.attr_color(_palette[Colors.C_IDX_REG_FG], _palette[Colors.C_IDX_BG])
             p_ctx.paint_string(l)
 
@@ -140,6 +142,9 @@ class CustomListBox(WListBox):
     @staticmethod
     def attr_italic(on: bool):
         Screen.wr("\x1b[3m" if on else "\x1b[23m")
+    @staticmethod
+    def attr_strike_thru(on: bool):
+        Screen.wr("\x1b[9m" if on else "\x1b[29m")
 
     @staticmethod
     def attr_reversed():
