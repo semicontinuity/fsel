@@ -152,7 +152,6 @@ class PaintContext:
             self.cur_x += sum(len(span[0]) for span in rich_text)
 
     def paint_rich_text_span(self, style: Style, text: AnyStr) -> AnyStr:
-        print('paint_rich_text_span', style, text)
         result = text
         if style.fg is not None:
             result = ansi_foreground_escape_code_auto(style.fg) + result + ANSI_CMD_DEFAULT_FG
@@ -168,7 +167,6 @@ class PaintContext:
             result = ANSI_CMD_ATTR_CROSSED_OUT + result + ANSI_CMD_ATTR_NOT_CROSSED_OUT
         if style.attr & AbstractBufferWriter.MASK_BG_EMPHASIZED != 0:
             result = ANSI_CMD_ATTR_INVERTED + result + ANSI_CMD_ATTR_NOT_INVERTED
-        print('paint_rich_text_span', style, repr(result))
         return result
 
 

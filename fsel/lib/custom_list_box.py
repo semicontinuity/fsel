@@ -44,7 +44,7 @@ class CustomListBox(WListBox):
             p_ctx.clear_num_pos(self.width)
             p_ctx.attr_reset()
         else:
-            self.show_real_line(item, i)
+            self.show_real_line2(item, i)
 
     def show_real_line(self, item: ListItem, i):
         match_string = self.match_string_supplier()
