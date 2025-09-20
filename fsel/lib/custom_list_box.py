@@ -3,8 +3,6 @@ from typing import Sequence
 from datatools.tui.buffer.abstract_buffer_writer import AbstractBufferWriter
 from picotui.widgets import WListBox
 
-from .ansi import attr_italic, attr_strike_thru, attr_reversed, attr_crossed_out, attr_not_crossed_out, \
-    attr_not_reversed, attr_color
 from .colors import Colors
 from .item_model import item_model
 from .list_item import ListItem
@@ -42,9 +40,9 @@ class CustomListBox(WListBox):
     def show_line(self, item: ListItem, i: int):
         """ item: line value; i: -1 for off-limit lines """
         if i == -1:
-            self.attr_reset()
+            p_ctx.attr_reset()
             p_ctx.clear_num_pos(self.width)
-            self.attr_reset()
+            p_ctx.attr_reset()
         else:
             self.show_real_line(item, i)
 
@@ -60,37 +58,37 @@ class CustomListBox(WListBox):
         _palette = palette(item_model.attrs(item), self.focus, self.cur_line == i)
 
         if display_from != -1:
-            self.attr_reset()
-            attr_italic(item_model.is_italic(item))
-            attr_strike_thru(item_model.is_strike_thru(item))
-            attr_color(fg=_palette[Colors.C_IDX_REG_FG], bg=_palette[Colors.C_IDX_BG])
+            p_ctx.attr_reset()
+            p_ctx.attr_italic(item_model.is_italic(item))
+            p_ctx.attr_strike_thru(item_model.is_strike_thru(item))
+            p_ctx.attr_color(fg=_palette[Colors.C_IDX_REG_FG], bg=_palette[Colors.C_IDX_BG])
 
             p_ctx.paint_text(l[:display_from])
 
-            attr_reversed()
+            p_ctx.attr_reversed()
             full_match = self.is_full_match_supplier()
 
             if not full_match:
-                attr_crossed_out()
+                p_ctx.attr_crossed_out()
 
             p_ctx.paint_text(l[display_from: display_to])
 
             if not full_match:
-                attr_not_crossed_out()
+                p_ctx.attr_not_crossed_out()
 
-            attr_not_reversed()
+            p_ctx.attr_not_reversed()
 
-            attr_color(_palette[Colors.C_IDX_REG_FG], _palette[Colors.C_IDX_BG])
+            p_ctx.attr_color(_palette[Colors.C_IDX_REG_FG], _palette[Colors.C_IDX_BG])
             p_ctx.paint_text(l[display_to:])
         else:
-            self.attr_reset()
-            attr_italic(item_model.is_italic(item))
-            attr_strike_thru(item_model.is_strike_thru(item))
-            attr_color(_palette[Colors.C_IDX_REG_FG], _palette[Colors.C_IDX_BG])
+            p_ctx.attr_reset()
+            p_ctx.attr_italic(item_model.is_italic(item))
+            p_ctx.attr_strike_thru(item_model.is_strike_thru(item))
+            p_ctx.attr_color(_palette[Colors.C_IDX_REG_FG], _palette[Colors.C_IDX_BG])
             p_ctx.paint_text(l)
 
         p_ctx.clear_num_pos(self.width - len(l))
-        self.attr_reset()
+        p_ctx.attr_reset()
 
     def show_real_line2(self, item: ListItem, i):
         """Alternative implementation of show_real_line using RichText"""
@@ -188,7 +186,7 @@ class CustomListBox(WListBox):
         
         # Clear the rest of the line
         p_ctx.clear_num_pos(self.width - visible_length)
-        self.attr_reset()
+        p_ctx.attr_reset()
 
     def handle_cursor_keys(self, key):
         result = super().handle_cursor_keys(key)

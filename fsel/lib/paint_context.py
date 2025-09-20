@@ -3,7 +3,8 @@ from typing import AnyStr
 
 from datatools.tui.ansi_str import ANSI_CMD_DEFAULT_FG, ANSI_CMD_ATTR_NOT_BOLD, ANSI_CMD_ATTR_BOLD, ANSI_CMD_DEFAULT_BG, \
     ANSI_CMD_ATTR_NOT_ITALIC, ANSI_CMD_ATTR_ITALIC, ANSI_CMD_ATTR_UNDERLINED, ANSI_CMD_ATTR_NOT_UNDERLINED, \
-    ANSI_CMD_ATTR_CROSSED_OUT, ANSI_CMD_ATTR_NOT_CROSSED_OUT
+    ANSI_CMD_ATTR_CROSSED_OUT, ANSI_CMD_ATTR_NOT_CROSSED_OUT, ANSI_CMD_ATTR_INVERTED, \
+    ANSI_CMD_ATTR_NOT_INVERTED
 from datatools.tui.buffer.abstract_buffer_writer import AbstractBufferWriter
 from datatools.tui.terminal import ansi_foreground_escape_code_auto, ansi_background_escape_code_auto
 from picotui.screen import Screen
@@ -19,6 +20,45 @@ class PaintContext:
     min_y: int = 0
     max_x: int = 0
     max_y: int = 0
+
+    def attr_reset(self):
+        Screen.attr_reset()
+
+    def attr_reversed(self):
+        Screen.wr("\x1b[7m")
+
+    def attr_not_reversed(self):
+        Screen.wr("\x1b[27m")
+
+    def attr_crossed_out(self):
+        Screen.wr("\x1b[9m")
+
+    def attr_not_crossed_out(self):
+        Screen.wr("\x1b[29m")
+
+    def attr_italic(self, on: bool):
+        Screen.wr("\x1b[3m" if on else "\x1b[23m")
+
+    def attr_strike_thru(self, on: bool):
+        Screen.wr("\x1b[9m" if on else "\x1b[29m")
+
+    def attr_color(self, fg, bg=-1):
+        if bg == -1:
+            bg = fg >> 4
+            fg &= 0xf
+
+        if type(fg) is tuple:
+            r, g, b = fg
+            s = "\x1b[38;2;%d;%d;%d;" % (r, g, b)
+        else:
+            s = "\x1b[38;5;%d;" % (fg,)
+        if type(bg) is tuple:
+            r, g, b = bg
+            s += "48;2;%d;%d;%dm" % (r, g, b)
+        else:
+            s += "48;5;%dm" % (bg,)
+
+        Screen.wr(s)
 
     def goto(self, x: int, y: int):
         self.cur_x = x
@@ -112,6 +152,7 @@ class PaintContext:
             self.cur_x += sum(len(span[0]) for span in rich_text)
 
     def paint_rich_text_span(self, style: Style, text: AnyStr) -> AnyStr:
+        print('paint_rich_text_span', style, text)
         result = text
         if style.fg is not None:
             result = ansi_foreground_escape_code_auto(style.fg) + result + ANSI_CMD_DEFAULT_FG
@@ -125,6 +166,9 @@ class PaintContext:
             result = ANSI_CMD_ATTR_UNDERLINED + result + ANSI_CMD_ATTR_NOT_UNDERLINED
         if style.attr & AbstractBufferWriter.MASK_CROSSED_OUT != 0:
             result = ANSI_CMD_ATTR_CROSSED_OUT + result + ANSI_CMD_ATTR_NOT_CROSSED_OUT
+        if style.attr & AbstractBufferWriter.MASK_BG_EMPHASIZED != 0:
+            result = ANSI_CMD_ATTR_INVERTED + result + ANSI_CMD_ATTR_NOT_INVERTED
+        print('paint_rich_text_span', style, repr(result))
         return result
 
 

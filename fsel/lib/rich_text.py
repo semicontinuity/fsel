@@ -7,7 +7,7 @@ from typing import TypeAlias
 
 @dataclass
 class Style:
-    attr: int = 0
+    attr: int = 0   # Collection of flags from AbstractBufferWriter
     fg: int | Sequence[int] | None = None
     bg: int | Sequence[int] | None = None
 

@@ -3,6 +3,7 @@ from typing import Sequence, Tuple
 
 from fsel.lib.item_model import ItemModel
 from fsel.lib.list_boxes import ListBoxes
+from fsel.lib.list_item import ListItem
 from fsel.lib.path_oracle import PathOracle
 from fsel.lib.select_path_dialog import SelectPathDialog
 from fsel.sdk import run_dialog
@@ -14,12 +15,11 @@ if __name__ == "__main__":
             "node1": ("node11", "node12",)
         }
 
-        def __call__(self, path: Sequence[str]) -> Sequence[Tuple[str, int]]:
-            """ Each item is a tuple; last element of tuple is int with item attributes (same as in st_mode) """
-            return tuple(
-                (value, self.attribute(value))
+        def __call__(self, path: Sequence[str]) -> Sequence[ListItem]:
+            return [
+                ListItem(value, self.attribute(value))
                 for value in Lister.tree[path[-1] if path else ""]
-            )
+            ]
 
         def attribute(self, node: str) -> int:
             return ItemModel.FLAG_DIRECTORY if Lister.tree.get(node) else 0
