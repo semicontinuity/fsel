@@ -3,7 +3,7 @@ from picotui.defs import KEY_QUIT, KEY_ESC, KEY_ENTER
 
 from .abstract_selection_dialog import AbstractSelectionDialog
 from .custom_list_box import CustomListBox
-from .item_model import item_model
+from .list_item_info_service import list_item_info_service
 
 
 class ItemSelectionDialog(AbstractSelectionDialog):
@@ -12,7 +12,7 @@ class ItemSelectionDialog(AbstractSelectionDialog):
         self.x = x
         self.y = y
         self.request_height(len(items))
-        self.add(0, 0, CustomListBox(item_model.max_item_text_length(items), len(items), items))
+        self.add(0, 0, CustomListBox(list_item_info_service.max_item_text_length(items), len(items), items))
 
     def handle_key(self, key):
         if key == KEY_QUIT:

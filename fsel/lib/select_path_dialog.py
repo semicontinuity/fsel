@@ -8,9 +8,9 @@ from picotui.widgets import WListBox
 from .abstract_selection_dialog import AbstractSelectionDialog
 from .custom_list_box import CustomListBox
 from .exit_codes_mapping import KEYS_TO_EXIT_CODES
-from .item_model import item_model
 from .keys import KEY_ALT_UP, KEY_ALT_DOWN, KEY_ALT_PAGE_UP, KEY_ALT_PAGE_DOWN, KEY_ALT_RIGHT, KEY_ALT_LEFT
 from .list_boxes import ListBoxes
+from .list_item_info_service import list_item_info_service
 from .logging import debug
 from .picotui_keys import KEY_ALT_HOME
 
@@ -234,11 +234,11 @@ class SelectPathDialog(AbstractSelectionDialog):
 
     def search_widget_and_scroll(self, search_range, skip_if_on_match, widget: CustomListBox):
         if self.folder_lists.match_string != '':
-            if skip_if_on_match and item_model.item_file_name(widget.items[widget.cur_line]).find(self.folder_lists.match_string) != -1:
+            if skip_if_on_match and list_item_info_service.item_file_name(widget.items[widget.cur_line]).find(self.folder_lists.match_string) != -1:
                 return
             for j in search_range:
                 i = j % len(widget.items)
-                if item_model.item_file_name(widget.items[i]).find(self.folder_lists.match_string) != -1:
+                if list_item_info_service.item_file_name(widget.items[i]).find(self.folder_lists.match_string) != -1:
                     widget.cur_line = widget.choice = i
                     widget.make_cur_line_visible()
                     return i
@@ -249,7 +249,7 @@ class SelectPathDialog(AbstractSelectionDialog):
         match_indices = []
         if self.folder_lists.match_string != '':
             for i in range(0, len(widget.items)):
-                if item_model.item_file_name(widget.items[i]).find(self.folder_lists.match_string) != -1:
+                if list_item_info_service.item_file_name(widget.items[i]).find(self.folder_lists.match_string) != -1:
                     match_count += 1
                     last_match_line = i
                     match_indices.append(i)

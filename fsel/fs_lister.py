@@ -1,11 +1,9 @@
 import os
 import sys
-
 from typing import List, AnyStr, Sequence
 
 from fsel.lib.list_item import ListItem
-
-from fsel.lib.item_model import ItemModel
+from fsel.lib.list_item_info_service import ListItemInfoService
 
 
 class FsListFiles:
@@ -33,11 +31,11 @@ class FsListFiles:
                     description = self.get_description(entry_path)
                     
                     # Set flags based on attributes
-                    flags = st_mode | ItemModel.FLAG_DIRECTORY
+                    flags = st_mode | ListItemInfoService.FLAG_DIRECTORY
                     if entry.is_symlink():
-                        flags |= ItemModel.FLAG_ITALIC
+                        flags |= ListItemInfoService.FLAG_ITALIC
                     if self.is_deleted(entry_path):
-                        flags |= ItemModel.FLAG_STRIKE_THRU
+                        flags |= ListItemInfoService.FLAG_STRIKE_THRU
                         
                     result.append(
                         ListItem(

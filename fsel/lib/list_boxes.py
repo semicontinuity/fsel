@@ -1,8 +1,8 @@
 from typing import Optional, List, Callable, Sequence
 
-from fsel.lib.item_model import item_model
-from fsel.lib.list_item import ListItem
-from fsel.lib.logging import debug
+from .list_item_info_service import list_item_info_service
+from .list_item import ListItem
+from .logging import debug
 from .custom_list_box import CustomListBox
 from .oracle import Oracle
 
@@ -58,7 +58,7 @@ class ListBoxes:
                 l.focus = True
                 break
             if index < len(initial_path):
-                l.cur_line = l.choice = item_model.index_of_item_file_name(initial_path[index], l.items) or 0
+                l.cur_line = l.choice = list_item_info_service.index_of_item_file_name(initial_path[index], l.items) or 0
 
         return boxes
 
@@ -120,7 +120,7 @@ class ListBoxes:
     def make_box(self, path: Sequence[str], items: Sequence[ListItem], preferred: Optional[str] = None):
         # debug("make_box", items=items, items_length=len(items), path=path)
         box = CustomListBox(
-            item_model.max_item_text_length(items),
+            list_item_info_service.max_item_text_length(items),
             len(items),
             items,
             path,
@@ -128,19 +128,19 @@ class ListBoxes:
             lambda: self.match_string == self.search_string
         )
         last_name = self.oracle.recall_chosen_name(path) if not preferred else preferred
-        choice = item_model.index_of_item_file_name(last_name, items)
+        choice = list_item_info_service.index_of_item_file_name(last_name, items)
         box.cur_line = box.choice = 0 if choice is None else choice
         return box
 
     def memorize_choice_in_list(self, index, persistent: bool):
         parent_path = [] if index == 0 else self.path(index - 1)
-        self.oracle.memorize(parent_path, item_model.item_file_name(self.selected_item_in_list(index)), persistent)
+        self.oracle.memorize(parent_path, list_item_info_service.item_file_name(self.selected_item_in_list(index)), persistent)
 
     def index_of_last_list(self):
         return len(self.boxes) - 1
 
     def is_at_leaf(self, index):
-        return item_model.is_leaf(self.selected_item_in_list(index))
+        return list_item_info_service.is_leaf(self.selected_item_in_list(index))
 
     def selected_item_in_list(self, index):
         return self.boxes[index].items[self.boxes[index].cur_line]
@@ -152,7 +152,7 @@ class ListBoxes:
         return len(self.boxes) == 0
 
     def path(self, index) -> List[str]:
-        return [item_model.item_file_name(l.items[l.cur_line]) for l in self.boxes[: index + 1]]
+        return [list_item_info_service.item_file_name(l.items[l.cur_line]) for l in self.boxes[: index + 1]]
 
     def items_path(self, index):
         return [l.items[l.cur_line] for l in self.boxes[: index + 1]]

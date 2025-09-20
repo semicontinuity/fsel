@@ -2,17 +2,16 @@ import os
 import sys
 from typing import Set, Dict
 
-from fsel.lib.item_model import item_model
-from fsel.lib.list_boxes import ListBoxes
-from fsel.lib.list_item import ListItem
-
 from fsel.all_settings_folder import AllSettingsFolder
 from fsel.fs_lister import FsListFiles
 from fsel.lib.item_selection_dialog import ItemSelectionDialog
+from fsel.lib.list_boxes import ListBoxes
+from fsel.lib.list_item import ListItem
+from fsel.lib.list_item_info_service import list_item_info_service
 from fsel.lib.logging import debug
 from fsel.lib.path_oracle import PathOracle
-from fsel.sdk import run_dialog, full_path, field_or_else
 from fsel.lib.select_path_dialog import SelectPathDialog
+from fsel.sdk import run_dialog, full_path, field_or_else
 
 RECENT_COUNT = 10
 
@@ -31,7 +30,7 @@ class AppSelectRecent(FsApp):
         )
         if items_path is None:
             sys.exit(1)
-        return exit_code, full_path(self.root, item_model.item_file_name(items_path[0]))
+        return exit_code, full_path(self.root, list_item_info_service.item_file_name(items_path[0]))
 
 
 class AppSelectInPanes(FsApp):
@@ -55,7 +54,7 @@ class AppSelectInPanes(FsApp):
         return exit_code, self.full_path(items_path)
 
     def full_path(self, items_path):
-        return os.path.join(self.root, *[item_model.item_file_name(i) for i in items_path])
+        return os.path.join(self.root, *[list_item_info_service.item_file_name(i) for i in items_path])
 
 
 def find_root(folder: str, roots: Set[str]) -> tuple[str, str]:

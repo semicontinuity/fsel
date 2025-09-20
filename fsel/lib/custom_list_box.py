@@ -4,8 +4,8 @@ from datatools.tui.buffer.abstract_buffer_writer import AbstractBufferWriter
 from picotui.widgets import WListBox
 
 from .colors import Colors
-from .item_model import item_model
 from .list_item import ListItem
+from .list_item_info_service import list_item_info_service
 from .logging import debug
 from .paint_context import p_ctx
 from .palette import palette
@@ -44,65 +44,23 @@ class CustomListBox(WListBox):
             p_ctx.clear_num_pos(self.width)
             p_ctx.attr_reset()
         else:
-            self.show_real_line2(item, i)
+            self.show_real_line(item, self.cur_line == i)
 
-    def show_real_line(self, item: ListItem, i):
-        match_string = self.match_string_supplier()
-        l = item_model.item_text(item)
-        match_from = -1 if len(match_string) <= 0 else l.find(match_string)
-        display_to = match_from + len(match_string)
-        l = l[:self.width]
-        display_from = min(match_from, self.width)
-        display_to = min(display_to, self.width)
-        debug('show_real_line', width=self.width, l=l, display_from=display_from, display_to=display_to)
-        _palette = palette(item_model.attrs(item), self.focus, self.cur_line == i)
-
-        if display_from != -1:
-            p_ctx.attr_reset()
-            p_ctx.attr_italic(item_model.is_italic(item))
-            p_ctx.attr_strike_thru(item_model.is_strike_thru(item))
-            p_ctx.attr_color(fg=_palette[Colors.C_IDX_REG_FG], bg=_palette[Colors.C_IDX_BG])
-
-            p_ctx.paint_text(l[:display_from])
-
-            p_ctx.attr_reversed()
-            full_match = self.is_full_match_supplier()
-
-            if not full_match:
-                p_ctx.attr_crossed_out()
-
-            p_ctx.paint_text(l[display_from: display_to])
-
-            if not full_match:
-                p_ctx.attr_not_crossed_out()
-
-            p_ctx.attr_not_reversed()
-
-            p_ctx.attr_color(_palette[Colors.C_IDX_REG_FG], _palette[Colors.C_IDX_BG])
-            p_ctx.paint_text(l[display_to:])
-        else:
-            p_ctx.attr_reset()
-            p_ctx.attr_italic(item_model.is_italic(item))
-            p_ctx.attr_strike_thru(item_model.is_strike_thru(item))
-            p_ctx.attr_color(_palette[Colors.C_IDX_REG_FG], _palette[Colors.C_IDX_BG])
-            p_ctx.paint_text(l)
-
-        p_ctx.clear_num_pos(self.width - len(l))
-        p_ctx.attr_reset()
-
-    def show_real_line2(self, item: ListItem, i):
+    def show_real_line(self, item: ListItem, is_focused_item: bool):
         """Alternative implementation of show_real_line using RichText"""
         # Get the rich text representation of the item
-        rich_text = item_model.item_rich_text(item)
+        rich_text = list_item_info_service.item_rich_text(item)
         
         # Get palette for this item
-        _palette = palette(item_model.attrs(item), self.focus, self.cur_line == i)
+        _palette = palette(list_item_info_service.attrs(item), self.focus, is_focused_item)
         
         # Create base style attributes
         base_attr = 0
-        if item_model.is_italic(item):
+        if list_item_info_service.is_italic(item):
             base_attr |= AbstractBufferWriter.MASK_ITALIC
-            
+        if list_item_info_service.is_strike_thru(item):
+            base_attr |= AbstractBufferWriter.MASK_CROSSED_OUT
+
         # Apply palette colors and attributes to each span in the rich text
         styled_rich_text: RichText = []
         for text, style in rich_text:
@@ -201,9 +159,9 @@ class CustomListBox(WListBox):
         found = False
 
         for i, item in enumerate(self.all_items):
-            debug('CustomListBox.search', s=s, i=i, item_file_name=item_model.item_file_name(item))
+            debug('CustomListBox.search', s=s, i=i, item_file_name=list_item_info_service.item_file_name(item))
             is_current = item == cur_item
-            is_match = item_model.item_file_name(item).find(s) >= 0
+            is_match = list_item_info_service.item_file_name(item).find(s) >= 0
             if is_match:
                 debug('CustomListBox.search', found=True)
                 found = True

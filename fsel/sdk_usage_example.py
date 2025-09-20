@@ -1,9 +1,9 @@
 import sys
-from typing import Sequence, Tuple
+from typing import Sequence
 
-from fsel.lib.item_model import ItemModel
 from fsel.lib.list_boxes import ListBoxes
 from fsel.lib.list_item import ListItem
+from fsel.lib.list_item_info_service import ListItemInfoService
 from fsel.lib.path_oracle import PathOracle
 from fsel.lib.select_path_dialog import SelectPathDialog
 from fsel.sdk import run_dialog
@@ -22,7 +22,7 @@ if __name__ == "__main__":
             ]
 
         def attribute(self, node: str) -> int:
-            return ItemModel.FLAG_DIRECTORY if Lister.tree.get(node) else 0
+            return ListItemInfoService.FLAG_DIRECTORY if Lister.tree.get(node) else 0
 
 
     view = ListBoxes(Lister(), PathOracle({}, {}), [])
