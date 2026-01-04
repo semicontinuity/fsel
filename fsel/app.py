@@ -1,3 +1,14 @@
+#!/usr/bin/env python3
+###
+# File/folder selection TUI app.
+###
+# Arguments:
+#
+# -V    use VCS root
+# -W    search root from work dir (nearest root from ~/.cache/fsel)
+# -f    show files
+# -r    return relative path
+###
 import os
 import sys
 from typing import Set, Dict
@@ -88,14 +99,12 @@ def update_recents(recent, rel_path_from_root):
 
 
 def main():
-    """
-    Arguments: [-W] [-f] [-x] [-a] [-e] [selected folder] [displayed root]
-    """
     path_args = [arg for arg in sys.argv[1:] if not arg.startswith('-')]
     wd = os.getenv('PWD')
     folder = wd if len(path_args) != 1 else os.path.realpath(path_args[0])
     displayed_root = None if len(path_args) < 2 else os.path.realpath(path_args[1])
 
+    use_vcs_root = '-V' in sys.argv[1:]
     search_root_from_work_dir = '-W' in sys.argv[1:]
     target_is_file = '-f' in sys.argv[1:]
     target_is_executable = '-x' in sys.argv[1:]
@@ -106,7 +115,10 @@ def main():
     else:
         field_for_recent = 'recent-folders'
     all_settings = AllSettingsFolder(os.getenv("HOME") + "/.cache/fsel")
-    if search_root_from_work_dir:
+
+    if use_vcs_root:
+        root, folder = find_root(folder, set())
+    elif search_root_from_work_dir:
         root, _ = find_root(wd, all_settings.roots)
         rel_path = os.path.relpath(folder, root)
         if rel_path.startswith('..'):
@@ -114,6 +126,7 @@ def main():
     else:
         root, folder = find_root(folder, all_settings.roots)
     debug("main", root=root, folder=folder)
+
     settings_for_root = all_settings.load_settings(root)
     recent = field_or_else(settings_for_root, field_for_recent, [])
 
