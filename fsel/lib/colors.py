@@ -6,13 +6,24 @@ from picotui.defs import *
 
 
 class Colors:
-    BLUE = 18
-    B_YELLOW = 227
-    B_GREEN = 120
-    B_RED = 196
-    GRAY = 248
-    CYAN = 31
+    # these are in 256-color mode
+    BLACK = C_BLACK
+    RED = C_RED
+    GREEN = C_GREEN
     YELLOW = 220
+    BLUE = 18
+    MAGENTA = C_MAGENTA
+    CYAN = 31
+    WHITE = C_WHITE
+
+    GRAY = 248
+    B_RED = 196
+    B_GREEN = C_B_GREEN
+    B_YELLOW = 227
+    B_BLUE = C_B_BLUE
+    B_MAGENTA =C_B_MAGENTA
+    B_CYAN = C_B_CYAN
+    B_WHITE = C_B_WHITE
 
     C_IDX_BG = 0
     C_IDX_REG_FG = 1
@@ -20,24 +31,24 @@ class Colors:
 
     C_STICKY_FOLDER = [
         # non focused list; non highlighted entry
-        [C_BLACK, B_GREEN, C_B_RED],
+        [BLACK, B_GREEN, B_RED],
         # non focused list; highlighted entry
-        [BLUE, B_GREEN, C_B_RED],
+        [BLUE, B_GREEN, B_RED],
         # focused list; non highlighted entry
-        [C_BLACK, B_GREEN, C_B_RED],
+        [BLACK, B_GREEN, B_RED],
         # focused list; highlighted entry
-        [CYAN, B_GREEN, C_B_RED]
+        [CYAN, B_GREEN, B_RED]
     ]
 
     C_SGID_FOLDER = [
         # non focused list; non highlighted entry
-        [C_BLACK, B_YELLOW, C_B_RED],
+        [BLACK, B_YELLOW, B_RED],
         # non focused list; highlighted entry
-        [BLUE, B_YELLOW, C_B_RED],
+        [BLUE, B_YELLOW, B_RED],
         # focused list; non highlighted entry
-        [C_BLACK, B_YELLOW, C_B_RED],
+        [C_BLACK, B_YELLOW, B_RED],
         # focused list; highlighted entry
-        [CYAN, B_YELLOW, C_B_RED]
+        [CYAN, B_YELLOW, B_RED]
     ]
 
     C_SUID_FOLDER = [
@@ -46,31 +57,31 @@ class Colors:
         # non focused list; highlighted entry
         [BLUE, (192, 48, 48), (255, 64, 64)],
         # focused list; non highlighted entry
-        [C_BLACK, (192, 48, 48), (255, 64, 64)],
+        [BLACK, (192, 48, 48), (255, 64, 64)],
         # focused list; highlighted entry
         [CYAN, (192, 48, 48), (255, 64, 64)]
     ]
 
     C_FOLDER = [
         # non focused list; non highlighted entry
-        [C_BLACK, C_B_WHITE, C_B_RED],
+        [BLACK, B_WHITE, B_RED],
         # non focused list; highlighted entry
-        [BLUE, C_B_WHITE, C_B_RED],
+        [BLUE, B_WHITE, B_RED],
         # focused list; non highlighted entry
-        [C_BLACK, C_B_WHITE, C_B_RED],
+        [BLACK, B_WHITE, B_RED],
         # focused list; highlighted entry
-        [CYAN, C_B_WHITE, C_B_RED]
+        [CYAN, B_WHITE, B_RED]
     ]
 
     C_LEAF = [
         # non focused list; non highlighted entry
-        [C_BLACK, GRAY, C_B_RED],
+        [BLACK, GRAY, B_RED],
         # non focused list; highlighted entry
-        [BLUE, GRAY, C_B_RED],
+        [BLUE, GRAY, B_RED],
         # focused list; non highlighted entry
-        [C_BLACK, GRAY, C_B_RED],
+        [BLACK, GRAY, B_RED],
         # focused list; highlighted entry
-        [CYAN, C_BLACK, C_B_RED]
+        [CYAN, BLACK, B_RED]
     ]
 
 
