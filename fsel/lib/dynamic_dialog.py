@@ -1,7 +1,7 @@
 from picotui.screen import Screen
 from picotui.widgets import Dialog
 
-from fsel.lib.paint_context import p_ctx
+from fsel.lib.tui.paint_context import p_ctx
 
 
 class DynamicDialog(Dialog):

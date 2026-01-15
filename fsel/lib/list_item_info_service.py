@@ -1,8 +1,8 @@
 from typing import Iterable, Tuple
 
-from fsel.lib.colors import Colors
 from fsel.lib.list_item import ListItem
-from fsel.lib.rich_text import Style
+from fsel.lib.tui.colors import Colors
+from fsel.lib.tui.style import Style
 
 
 class ListItemInfoService:

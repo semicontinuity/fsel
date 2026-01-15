@@ -12,7 +12,7 @@ from .keys import KEY_ALT_UP, KEY_ALT_DOWN, KEY_ALT_PAGE_UP, KEY_ALT_PAGE_DOWN, 
 from .list_boxes import ListBoxes
 from .list_item_info_service import list_item_info_service
 from .logging import debug
-from .picotui_keys import KEY_ALT_HOME
+from fsel.lib.tui.picotui_keys import KEY_ALT_HOME
 
 
 class SelectPathDialog(AbstractSelectionDialog):

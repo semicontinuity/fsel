@@ -9,7 +9,8 @@ from datatools.tui.buffer.abstract_buffer_writer import AbstractBufferWriter
 from datatools.tui.terminal import ansi_foreground_escape_code_auto, ansi_background_escape_code_auto
 from picotui.screen import Screen
 
-from fsel.lib.rich_text import RichText, Style
+from fsel.lib.tui.rich_text import RichText
+from fsel.lib.tui.style import Style
 
 
 class PaintContext:

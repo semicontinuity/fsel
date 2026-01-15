@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from picotui.defs import *
-from fsel.lib.picotui_keys import *
+from fsel.lib.tui.picotui_keys import *
 from fsel.exit_codes import *
 
 

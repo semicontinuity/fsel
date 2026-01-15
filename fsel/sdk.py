@@ -5,11 +5,11 @@ from picotui.widgets import ACTION_CANCEL, ACTION_OK
 from .exit_codes import EXIT_CODE_ENTER, EXIT_CODE_ESCAPE
 from .lib.abstract_selection_dialog import AbstractSelectionDialog
 from .lib.exit_codes_mapping import KEYS_TO_EXIT_CODES
-from .lib.paint_context import p_ctx
-from fsel.lib.picotui_patch import patch_picotui
+from fsel.lib.tui.paint_context import p_ctx
+from fsel.lib.tui.picotui_patch import patch_picotui
 
 patch_picotui()
-from fsel.lib.picotui_patch import *
+from fsel.lib.tui.picotui_patch import *
 
 screen = Screen()
 

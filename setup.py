@@ -15,5 +15,5 @@ setup(name='fsel',
       author='Semicontinuity',
       license='MIT',
       install_requires=['picotui'],
-      packages=['fsel', 'fsel.lib'],
+      packages=['fsel', 'fsel.lib', 'fsel.lib.tui'],
 )

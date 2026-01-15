@@ -1,11 +1,15 @@
 from stat import S_ISVTX, S_ISGID, S_ISUID
 
-from .colors import Colors
-from .list_item_info_service import ListItemInfoService
+from fsel.lib.tui.colors import Colors
+from fsel.lib.list_item_info_service import ListItemInfoService
 
 
 class Palette:
-    C_STICKY_FOLDER = [
+    C_IDX_BG = 0
+    C_IDX_REG_FG = 1
+    C_IDX_MATCH_FG = 2  # unused
+
+    STICKY_FOLDER = [
         # non focused list; non highlighted entry
         [Colors.BLACK, Colors.B_GREEN, Colors.B_RED],
         # non focused list; highlighted entry
@@ -16,7 +20,7 @@ class Palette:
         [Colors.CYAN, Colors.B_GREEN, Colors.B_RED]
     ]
 
-    C_SGID_FOLDER = [
+    SGID_FOLDER = [
         # non focused list; non highlighted entry
         [Colors.BLACK, Colors.B_YELLOW, Colors.B_RED],
         # non focused list; highlighted entry
@@ -27,7 +31,7 @@ class Palette:
         [Colors.CYAN, Colors.B_YELLOW, Colors.B_RED]
     ]
 
-    C_SUID_FOLDER = [
+    SUID_FOLDER = [
         # non focused list; non highlighted entry
         [Colors.BLACK, (192, 48, 48), (255, 64, 64)],
         # non focused list; highlighted entry
@@ -38,7 +42,7 @@ class Palette:
         [Colors.CYAN, (192, 48, 48), (255, 64, 64)]
     ]
 
-    C_FOLDER = [
+    FOLDER = [
         # non focused list; non highlighted entry
         [Colors.BLACK, Colors.B_WHITE, Colors.B_RED],
         # non focused list; highlighted entry
@@ -49,7 +53,7 @@ class Palette:
         [Colors.CYAN, Colors.B_WHITE, Colors.B_RED]
     ]
 
-    C_LEAF = [
+    LEAF = [
         # non focused list; non highlighted entry
         [Colors.BLACK, Colors.GRAY, Colors.B_RED],
         # non focused list; highlighted entry
@@ -65,14 +69,14 @@ def palette(attrs: int, focused_list: bool, focused_entry: bool) -> list[int]:
     """ category: one of C_IDX_* constants """
 
     if (attrs & ListItemInfoService.FLAG_DIRECTORY) and (attrs & S_ISVTX):
-        _palette = Palette.C_STICKY_FOLDER
+        _palette = Palette.STICKY_FOLDER
     elif (attrs & ListItemInfoService.FLAG_DIRECTORY) and (attrs & S_ISGID):
-        _palette = Palette.C_SGID_FOLDER
+        _palette = Palette.SGID_FOLDER
     elif (attrs & ListItemInfoService.FLAG_DIRECTORY) and (attrs & S_ISUID):
-        _palette = Palette.C_SUID_FOLDER
+        _palette = Palette.SUID_FOLDER
     elif attrs & ListItemInfoService.FLAG_DIRECTORY:
-        _palette = Palette.C_FOLDER
+        _palette = Palette.FOLDER
     else:
-        _palette = Palette.C_LEAF
+        _palette = Palette.LEAF
 
     return _palette[2 * int(focused_list) + int(focused_entry)]

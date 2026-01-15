@@ -1,8 +1,8 @@
 from datatools.tui.buffer.abstract_buffer_writer import AbstractBufferWriter
 
-from fsel.lib.colors import Colors
-from fsel.lib.paint_context import p_ctx
-from fsel.lib.rich_text import Style
+from fsel.lib.tui.colors import Colors
+from fsel.lib.tui.paint_context import p_ctx
+from fsel.lib.tui.style import Style
 
 
 def main():

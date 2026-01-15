@@ -1,4 +1,4 @@
-from fsel.lib.picotui_patch import patch_picotui
+from fsel.lib.tui.picotui_patch import patch_picotui
 
 patch_picotui()
 
@@ -24,7 +24,3 @@ class Colors:
     B_MAGENTA = C_B_MAGENTA
     B_CYAN = C_B_CYAN
     B_WHITE = C_B_WHITE
-
-    C_IDX_BG = 0
-    C_IDX_REG_FG = 1
-    C_IDX_MATCH_FG = 2
