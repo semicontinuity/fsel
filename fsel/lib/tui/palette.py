@@ -1,7 +1,4 @@
-from stat import S_ISVTX, S_ISGID, S_ISUID
-
 from fsel.lib.tui.colors import Colors
-from fsel.lib.list_item_info_service import ListItemInfoService
 
 
 class Palette:
@@ -63,20 +60,3 @@ class Palette:
         # focused list; highlighted entry
         [Colors.CYAN, Colors.BLACK, Colors.B_RED]
     ]
-
-
-def palette(attrs: int, focused_list: bool, focused_entry: bool) -> list[int]:
-    """ category: one of C_IDX_* constants """
-
-    if (attrs & ListItemInfoService.FLAG_DIRECTORY) and (attrs & S_ISVTX):
-        _palette = Palette.STICKY_FOLDER
-    elif (attrs & ListItemInfoService.FLAG_DIRECTORY) and (attrs & S_ISGID):
-        _palette = Palette.SGID_FOLDER
-    elif (attrs & ListItemInfoService.FLAG_DIRECTORY) and (attrs & S_ISUID):
-        _palette = Palette.SUID_FOLDER
-    elif attrs & ListItemInfoService.FLAG_DIRECTORY:
-        _palette = Palette.FOLDER
-    else:
-        _palette = Palette.LEAF
-
-    return _palette[2 * int(focused_list) + int(focused_entry)]

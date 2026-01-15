@@ -10,7 +10,7 @@ class ListItemInfoService:
     FLAG_ITALIC = 0x10000
     FLAG_STRIKE_THRU = 0x20000
 
-    def attrs(self, item: ListItem):
+    def attrs(self, item: ListItem) -> int:
         return item.attrs
 
     def is_leaf(self, item: ListItem):

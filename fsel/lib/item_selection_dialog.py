@@ -3,7 +3,7 @@ from picotui.defs import KEY_QUIT, KEY_ESC, KEY_ENTER
 
 from .abstract_selection_dialog import AbstractSelectionDialog
 from .custom_list_box import CustomListBox
-from .list_item_info_service import list_item_info_service
+from fsel.lib.list_item_info_service import list_item_info_service
 
 
 class ItemSelectionDialog(AbstractSelectionDialog):

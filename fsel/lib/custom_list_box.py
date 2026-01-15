@@ -3,14 +3,12 @@ from typing import Sequence
 from datatools.tui.buffer.abstract_buffer_writer import AbstractBufferWriter
 from picotui.widgets import WListBox
 
-from fsel.lib.tui.colors import Colors
+from fsel.lib.list_item_info_service import list_item_info_service
 from fsel.lib.tui.paint_context import p_ctx
-from fsel.lib.tui.palette import palette, Palette
 from fsel.lib.tui.rich_text import RichText, rich_text_length, rich_text_to_plain
 from .list_item import ListItem
-from .list_item_info_service import list_item_info_service
 from .logging import debug
-from .tui.style import Style
+from fsel.lib.style_combiner import StyleCombiner
 
 
 class CustomListBox(WListBox):
@@ -54,7 +52,7 @@ class CustomListBox(WListBox):
         item_attrs = list_item_info_service.attrs(item)
 
         # Get palette for this item
-        _palette = palette(attrs=item_attrs, focused_list=self.focus, focused_entry=is_focused_item)
+        combiner = StyleCombiner(attrs=item_attrs, focused_list=self.focus, focused_entry=is_focused_item)
         
         # Create base style attributes
         base_attr = 0
@@ -67,7 +65,7 @@ class CustomListBox(WListBox):
         styled_rich_text: RichText = []
         for text, style in rich_text:
             # Create a new style that combines the original style with our palette colors
-            new_style = self.style_for(_palette, base_attr, style)
+            new_style = combiner.style_for(base_attr, style)
             styled_rich_text.append((text, new_style))
         
         # Handle search highlighting if needed
@@ -109,7 +107,7 @@ class CustomListBox(WListBox):
                         
                         # Add matched text with reversed style
                         match_text = text[overlap_start:overlap_end]
-                        match_style = self.match_style_for(_palette, style)
+                        match_style = combiner.match_style_for(style)
 
                         # Add crossed out attribute if not a full match
                         full_match = self.is_full_match_supplier()
@@ -139,16 +137,6 @@ class CustomListBox(WListBox):
         # Clear the rest of the line
         p_ctx.clear_num_pos(self.width - visible_length)
         p_ctx.attr_reset()
-
-    def match_style_for(self, _palette, style):
-        return self.style_for(_palette, AbstractBufferWriter.MASK_BG_EMPHASIZED, style)
-
-    def style_for(self, _palette, base_attr, style):
-        return Style(
-            attr=(style.attr | base_attr),
-            fg=style.fg if style.fg is not None else _palette[Palette.C_IDX_REG_FG],
-            bg=style.bg if style.bg is not None else _palette[Palette.C_IDX_BG]
-        )
 
     def handle_cursor_keys(self, key):
         result = super().handle_cursor_keys(key)

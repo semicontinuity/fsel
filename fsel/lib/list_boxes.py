@@ -1,6 +1,6 @@
 from typing import Optional, List, Callable, Sequence
 
-from .list_item_info_service import list_item_info_service
+from fsel.lib.list_item_info_service import list_item_info_service
 from .list_item import ListItem
 from .logging import debug
 from .custom_list_box import CustomListBox

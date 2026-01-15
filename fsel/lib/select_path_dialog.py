@@ -8,9 +8,9 @@ from picotui.widgets import WListBox
 from .abstract_selection_dialog import AbstractSelectionDialog
 from .custom_list_box import CustomListBox
 from .exit_codes_mapping import KEYS_TO_EXIT_CODES
-from .keys import KEY_ALT_UP, KEY_ALT_DOWN, KEY_ALT_PAGE_UP, KEY_ALT_PAGE_DOWN, KEY_ALT_RIGHT, KEY_ALT_LEFT
+from fsel.lib.tui.keys import KEY_ALT_UP, KEY_ALT_DOWN, KEY_ALT_PAGE_UP, KEY_ALT_PAGE_DOWN, KEY_ALT_RIGHT, KEY_ALT_LEFT
 from .list_boxes import ListBoxes
-from .list_item_info_service import list_item_info_service
+from fsel.lib.list_item_info_service import list_item_info_service
 from .logging import debug
 from fsel.lib.tui.picotui_keys import KEY_ALT_HOME
 
