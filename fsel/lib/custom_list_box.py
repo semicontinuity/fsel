@@ -1,6 +1,5 @@
 from typing import Sequence
 
-from datatools.tui.buffer.abstract_buffer_writer import AbstractBufferWriter
 from picotui.widgets import WListBox
 
 from fsel.lib.list_item_info_service import list_item_info_service
@@ -9,6 +8,7 @@ from fsel.lib.tui.rich_text import RichText, rich_text_length, rich_text_to_plai
 from .list_item import ListItem
 from .logging import debug
 from fsel.lib.style_combiner import StyleCombiner
+from .tui.attribute import Attribute
 
 
 class CustomListBox(WListBox):
@@ -57,9 +57,9 @@ class CustomListBox(WListBox):
         # Create base style attributes
         base_attr = 0
         if list_item_info_service.is_italic(item):
-            base_attr |= AbstractBufferWriter.MASK_ITALIC
+            base_attr |= Attribute.MASK_ITALIC
         if list_item_info_service.is_strike_thru(item):
-            base_attr |= AbstractBufferWriter.MASK_CROSSED_OUT
+            base_attr |= Attribute.MASK_CROSSED_OUT
 
         # Apply palette colors and attributes to each span in the rich text
         styled_rich_text: RichText = []
@@ -112,7 +112,7 @@ class CustomListBox(WListBox):
                         # Add crossed out attribute if not a full match
                         full_match = self.is_full_match_supplier()
                         if not full_match:
-                            match_style = match_style.with_attr_flag(AbstractBufferWriter.MASK_CROSSED_OUT)
+                            match_style = match_style.with_attr_flag(Attribute.MASK_CROSSED_OUT)
                         
                         highlighted_rich_text.append((match_text, match_style))
                         

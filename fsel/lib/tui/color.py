@@ -5,7 +5,7 @@ patch_picotui()
 from picotui.defs import *
 
 
-class Colors:
+class Color:
     # these are in 256-color mode
     BLACK = C_BLACK
     RED = C_RED

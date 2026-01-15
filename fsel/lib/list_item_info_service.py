@@ -1,7 +1,7 @@
 from typing import Iterable, Tuple
 
 from fsel.lib.list_item import ListItem
-from fsel.lib.tui.colors import Colors
+from fsel.lib.tui.color import Color
 from fsel.lib.tui.style import Style
 
 
@@ -36,7 +36,7 @@ class ListItemInfoService:
 
         if item.description is not None:
             rich_text.append((' ', Style()))
-            rich_text.append((item.description, Style(fg=Colors.YELLOW)))
+            rich_text.append((item.description, Style(fg=Color.YELLOW)))
 
         return rich_text
 

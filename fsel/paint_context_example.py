@@ -1,6 +1,6 @@
 from datatools.tui.buffer.abstract_buffer_writer import AbstractBufferWriter
 
-from fsel.lib.tui.colors import Colors
+from fsel.lib.tui.colors import Color
 from fsel.lib.tui.paint_context import p_ctx
 from fsel.lib.tui.style import Style
 
@@ -11,7 +11,7 @@ def main():
     p_ctx.max_x = 20
     p_ctx.max_y = 20
 
-    p_ctx.attr_color(fg=Colors.B_YELLOW, bg=Colors.BLUE)
+    p_ctx.attr_color(fg=Color.B_YELLOW, bg=Color.BLUE)
     p_ctx.clear_box(0, 0, 30, 30)
 
     p_ctx.goto(6, 11)
@@ -21,22 +21,22 @@ def main():
 
     p_ctx.goto(10, 12)
     t = [
-        ('Hello', Style(fg=Colors.B_RED)),
-        ('World', Style(bg=Colors.CYAN)),
+        ('Hello', Style(fg=Color.B_RED)),
+        ('World', Style(bg=Color.CYAN)),
     ]
     p_ctx.paint_rich_text(t)
 
     p_ctx.goto(9, 13)
     t = [
-        ('Hello', Style(attr=AbstractBufferWriter.MASK_CROSSED_OUT, fg=Colors.B_RED)),
-        ('World', Style(bg=Colors.CYAN)),
+        ('Hello', Style(attr=AbstractBufferWriter.MASK_CROSSED_OUT, fg=Color.B_RED)),
+        ('World', Style(bg=Color.CYAN)),
     ]
     p_ctx.paint_rich_text(t)
 
     p_ctx.goto(11, 14)
     t = [
-        ('Hello', Style(attr=AbstractBufferWriter.MASK_BG_EMPHASIZED, fg=Colors.B_RED)),
-        ('World', Style(bg=Colors.CYAN)),
+        ('Hello', Style(attr=AbstractBufferWriter.MASK_BG_EMPHASIZED, fg=Color.B_RED)),
+        ('World', Style(bg=Color.CYAN)),
     ]
     p_ctx.paint_rich_text(t)
 
